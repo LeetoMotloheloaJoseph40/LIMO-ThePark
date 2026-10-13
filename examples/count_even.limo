@@ -1,4 +1,4 @@
-kopanyah t1, x0, 0       # count = 0
+    kopanyah t1, x0, 0       # count = 0
     kopanyah t2, x0, 0       # index = 0
     kopanyah t3, x0, 5       # array length = 5
     kopanyah t4, x0, 4       # element size = 4
