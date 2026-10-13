@@ -1,0 +1,26 @@
+# ---- Data section ----
+# A is at address 0, B is at address 4.
+
+        kopanyah t0, noto, 25       # t0 = 25  (value A)
+        boloka   t0, 0(noto)        # MEM[0] = A = 25
+
+        kopanyah t0, noto, 17       # t0 = 17  (value B)
+        boloka   t0, 4(noto)        # MEM[4] = B = 17
+
+# ---- Load A and B into registers ----
+        tshela   n0, 0(noto)        # n0 = A = 25
+        tshela   n1, 4(noto)        # n1 = B = 17
+
+# ---- Compare: if A < B, B is larger ----
+        nyane    n0, n1, take_b     # if A < B, jump to take_b
+        kopanya  n2, n0, noto       # else result = A
+        tlola     noto, done         # jump to done
+
+take_b:
+        kopanya  n2, n1, noto       # result = B
+
+done:
+        boloka   n2, 16(noto)       # MEM[16] = larger value
+
+halt:
+        lekana   noto, noto, halt   # halt (branch to self)
