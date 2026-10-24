@@ -1,0 +1,5 @@
+program: tests/hazards/programs/load_use.limo
+expect: REG r2 99
+        CYCLES 6
+status: skip
+note: lw r1,0(r0) ; add r2,r1,r1 — one-cycle stall

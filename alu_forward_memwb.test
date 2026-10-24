@@ -1,0 +1,5 @@
+program: tests/hazards/programs/alu_forward_gap.limo
+expect: REG r3 42
+        CYCLES 6
+status: skip
+note: one independent instruction between producer and consumer — MEM/WB path

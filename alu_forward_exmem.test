@@ -1,0 +1,5 @@
+program: tests/hazards/programs/alu_forward.limo
+expect: REG r3 42
+        CYCLES 5
+status: skip
+note: back-to-back ALU (add r3 = r1 + r2) — EX/MEM forwarding
