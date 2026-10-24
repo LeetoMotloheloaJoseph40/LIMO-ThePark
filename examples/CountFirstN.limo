@@ -1,0 +1,11 @@
+# CountFirstN - sums 1 + 2 + ... + N for N = 5 (M1 sample program 1)
+# Expected final state: t0 = 5, t1 = 15, t2 = 6
+# N = 25 instructions, 0 stalls, 12 flushed (6 taken transfers x 2) -> 41 cycles
+kopanyah t0, noto, 5      # t0 = N = 5
+kopanyah t1, noto, 0      # sum = 0
+kopanyah t2, noto, 1      # i = 1
+loop: nyane t0, t2, done  # if N < i, finish (taken once)
+kopanya t1, t1, t2        # sum = sum + i
+kopanyah t2, t2, 1        # i = i + 1
+tlola noto, loop          # jump back to loop (taken 5 times)
+done: lekana noto, noto, done   # halt (branch to itself)

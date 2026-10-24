@@ -1,13 +1,19 @@
 # LIMO – The Park
 
-**Live link:** (add once GitHub Pages is set up)
+A Sesotho-mnemonic, RV32I-derived instruction set (**LIMO**) and a browser-based
+five-stage pipeline simulator. CS3520 Computer Organisation and Architecture,
+National University of Lesotho, AY 2026/2027.
 
-A Sesotho-mnemonic, RV32I-style ISA with a pipeline simulator (CS3520, NUL).
+**Live simulator:** <https://leetomotloheloajoseph40.github.io/LIMO-ThePark/> *(live once GitHub Pages is enabled)*
+**Demo video:** (add unlisted YouTube link for M5)
 
-## Team & Roles
-| Member | GitHub | Role |
+## Team and roles
+
+Roles rotate weekly. Current week: **M?**
+
+| Member | GitHub | Role this week |
 |---|---|---|
-| L. Motloheloa | @LeetoMotloheloaJoseph40 | ISA Architect |
+| L. Motloheloa | @LeetoMotloheloaJoseph40 | |
 | T. Liphoto | @thaboliphoto | |
 | R. Moseme | @Moseme | |
 | K. Khobotle | @KhobotleHelen | |
@@ -15,8 +21,27 @@ A Sesotho-mnemonic, RV32I-style ISA with a pipeline simulator (CS3520, NUL).
 | S. Senekane | @Charity6-dev | |
 
 ## Repository layout
-- `src/` – simulator source
-- `tests/` – test programs and results
-- `examples/` – sample LIMO programs
-- `docs/` – ISA specification, design, test report, team charter
-- `AI_USE.md` – AI usage disclosure
+
+| Path | Contents |
+|---|---|
+| `src/` | The simulator (static site, published from here) |
+| `tests/` | Unit tests and LIMO test programs |
+| `examples/` | Sample `.limo` programs |
+| `docs/` | ISA specification, design, test report, team charter, sprint notes |
+| `AI_USE.md` | AI usage declaration |
+
+## Run locally
+
+```bash
+npm test                      # unit tests (Node 20+)
+npx serve src                 # or open src/index.html in a browser
+```
+
+## How we work
+
+Feature branch -> pull request -> review by another member -> merge. `main` is protected.
+Each milestone is a tagged release (`m1`–`m4`, `v1.0`). See `docs/team-charter.md`.
+
+## Licence
+
+MIT, see `LICENSE`.

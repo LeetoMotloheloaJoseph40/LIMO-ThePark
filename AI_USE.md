@@ -1,6 +1,9 @@
-Tool: Claude (Anthropic)
-Corrected and completed our draft ISA tables and format diagrams proposed khutla, nyane and tlola for (jalr, blt, jal) respectively.
+# AI use declaration
 
-Tool: ChatGPT (OpenAI)
-Purpose: Reviewed the M2 interface assignment and existing project files, then helped plan the interface shell.
-What changed: I used the guidance to add the editor, register, memory, narration and pipeline-register layout in page.template.html and regenerate index.html; I will review and explain the changes before submitting.
+Per the LIMO handout: for each use, record the tool, the purpose, and what we changed.
+Code we cannot explain at a defence is not ours. Add a row every time.
+
+| Date | Member | Tool | Purpose | What we changed / checked |
+|---|---|---|---|---|
+| (M1) | L. Motloheloa | Claude (Anthropic) | Corrected and completed draft ISA tables and format diagrams; proposed `khutla`, `nyane`, `tlola` for jalr, blt, jal | The team reviewed and incorporated the accepted ISA table and mnemonic proposals. |
+| 2026-10-24 | T. Liphoto | ChatGPT (OpenAI) | Reviewed the M2 interface assignment and existing project files; helped plan and resolve the interface shell changes. | Added the editor and state/narration panel layout, retained the current Pages deployment from `src/`, and checked the generated page destination against the deployment workflow. |

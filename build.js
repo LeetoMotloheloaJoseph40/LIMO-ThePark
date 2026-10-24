@@ -20,5 +20,5 @@ for (const file of readdirSync(new URL('./examples/', import.meta.url)).sort()) 
 let html = read('./page.template.html');
 html = html.replace('/*ASSEMBLER*/', () => `const LIMO = (function () {\n${assemblerCode}\nreturn { assemble };\n})();`);
 html = html.replace('/*EXAMPLES*/', () => 'const EXAMPLES = ' + JSON.stringify(examples) + ';');
-writeFileSync(new URL('./index.html', import.meta.url), html);
-console.log('index.html written (' + html.length + ' bytes)');
+writeFileSync(new URL('./src/index.html', import.meta.url), html);
+console.log('src/index.html written (' + html.length + ' bytes)');
