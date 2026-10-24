@@ -1,13 +1,21 @@
-# Program 2: compare_2_int - keeps the larger of A and B at MEM[16]
+# compare_2_int - stores A and B, loads them back, keeps the larger at MEM[16]
+# (M1 sample program 2; v1.1 fixes the halt label: qetile branched to "qetiled")
+#
+# As written (A = 25, B = 17):
+#   MEM[0] = 25, MEM[4] = 17, MEM[16] = 25; t0 = 17, n0 = 25, n1 = 17, n2 = 25
+#   N = 11, 1 stall, 2 flushed -> 18 cycles
+# Variant: change line "kopanyah t0, noto, 17" to 40 (nyane is then taken):
+#   MEM[4] = MEM[16] = 40; t0 = n1 = n2 = 40; n0 = 25
+#   N = 10, 1 stall, 2 flushed -> 17 cycles
 kopanyah t0, noto, 25     # t0 = 25 (value A)
-boloka t0, 0(noto)        # MEM[0] = A
+boloka t0, 0(noto)        # MEM[0] = A (RAW on t0: forwarded)
 kopanyah t0, noto, 17     # t0 = 17 (value B)
 boloka t0, 4(noto)        # MEM[4] = B
 tshela n0, 0(noto)        # n0 = A
 tshela n1, 4(noto)        # n1 = B
-nyane n0, n1, nka_b       # if A < B, jump to nka_b (load-use: 1 stall)
-kopanya n2, n0, noto      # else result = A
-tlola noto, qeta          # skip the B case
-nka_b: kopanya n2, n1, noto   # result = B
-qeta:  boloka n2, 16(noto)    # MEM[16] = larger value
-qetile: lekana noto, noto, qetile  # halt
+nyane n0, n1, nka_b       # if A < B, go to nka_b (load-use: 1 stall)
+kopanya n2, n0, noto      # else result = A (a register copy)
+tlola noto, qeta          # skip the B case (taken)
+nka_b: kopanya n2, n1, noto     # result = B
+qeta: boloka n2, 16(noto)       # MEM[16] = larger value
+qetile: lekana noto, noto, qetile   # halt
