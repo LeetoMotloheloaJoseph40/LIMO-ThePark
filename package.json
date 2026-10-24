@@ -1,0 +1,11 @@
+{
+  "name": "limo-assembler",
+  "version": "1.0.0",
+  "description": "LIMO assembler (Sesotho-language RISC-V derived ISA) - team The Park",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "build": "node build.js"
+  },
+  "license": "MIT"
+}

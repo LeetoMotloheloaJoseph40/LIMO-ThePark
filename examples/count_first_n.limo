@@ -1,0 +1,9 @@
+# Program 1: CountFirstN - sums 1 + 2 + ... + N for N = 5
+kopanyah t0, noto, 5      # t0 = N = 5
+kopanyah t1, noto, 0      # sum = 0
+kopanyah t2, noto, 1      # i = 1
+loop:  nyane t0, t2, done # if N < i, finish (taken once)
+kopanya t1, t1, t2        # sum = sum + i
+kopanyah t2, t2, 1        # i = i + 1
+tlola noto, loop          # jump back to loop (taken 5 times)
+done:  lekana noto, noto, done  # halt
