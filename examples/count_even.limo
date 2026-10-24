@@ -29,4 +29,4 @@ haelekane t6, noto, skip  # odd: do not count it
 kopanyah t1, t1, 1        # even: count++
 skip: kopanyah t2, t2, 1  # index++
 tlola noto, loop          # next element
-done: lekana noto, noto, done  # halt
+done: 
