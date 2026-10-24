@@ -1,32 +1,32 @@
-    kopanyah t1, x0, 0       # count = 0
-    kopanyah t2, x0, 0       # index = 0
-    kopanyah t3, x0, 5       # array length = 5
-    kopanyah t4, x0, 4       # element size = 4
-
-loop:
-    lekana t2, t3, done      # If index == length, finish
-
-    # Calculate the address of array[index].
-    # This version assumes the element address
-    # is calculated using repeated addition.
-
-    kopanyah t5, x0, 0       # offset = 0
-    kopanyah t6, x0, 0       # counter = 0
-
-offset_loop:
-    lekana t6, t2, check     # If counter == index, continue
-    kopanya t5, t5, t4       # offset = offset + 4
-    kopanyah t6, t6, 1       # counter++
-    tlola x0, offset_loop
-
-check:
-    kopanya t5, t0, t5       # address = base + offset
-    tshela t6, 0(t5)         # Load array element
-
-    # Parity checking requires additional
-    # instructions; see explanation below.
-
-    kopanyah t2, t2, 1       # index++
-    tlola x0, loop
-
-done:
+# Program 3: count_even - counts the even numbers in a five-element array
+kopanyah n0, noto, 4      # initialise the array a[0..4] = 4, 7, 10, 3, 8
+boloka n0, 0(noto)
+kopanyah n0, noto, 7
+boloka n0, 4(noto)
+kopanyah n0, noto, 10
+boloka n0, 8(noto)
+kopanyah n0, noto, 3
+boloka n0, 12(noto)
+kopanyah n0, noto, 8
+boloka n0, 16(noto)
+kopanyah t0, noto, 0      # base address = 0
+kopanyah t1, noto, 0      # count = 0
+kopanyah t2, noto, 0      # index = 0
+kopanyah t3, noto, 5      # array length = 5
+kopanyah t4, noto, 4      # element size = 4
+kopanyah t7, noto, 1      # mask = 1 (LIMO has no andi)
+loop: lekana t2, t3, done # if index == length, finish
+kopanyah t5, noto, 0      # offset = 0
+kopanyah t6, noto, 0      # counter = 0
+offset_loop: lekana t6, t2, check  # if counter == index, offset is ready
+kopanya t5, t5, t4        # offset = offset + 4
+kopanyah t6, t6, 1        # counter++
+tlola noto, offset_loop   # repeat
+check: kopanya t5, t0, t5 # address = base + offset
+tshela t6, 0(t5)          # load a[index]
+le t6, t6, t7             # t6 = a[index] AND 1
+haelekane t6, noto, skip  # odd: do not count it
+kopanyah t1, t1, 1        # even: count++
+skip: kopanyah t2, t2, 1  # index++
+tlola noto, loop          # next element
+done: lekana noto, noto, done  # halt
