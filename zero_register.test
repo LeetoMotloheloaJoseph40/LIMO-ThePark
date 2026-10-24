@@ -1,0 +1,4 @@
+program: tests/hazards/programs/zero_reg.limo
+expect: REG r1 0
+status: skip
+note: write to r0 ignored; read of r0 returns 0, no stall
