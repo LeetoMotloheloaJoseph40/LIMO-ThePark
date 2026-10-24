@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>LIMO Assembler · The Park</title>
+<title>LIMO Pipeline Simulator · The Park</title>
 <style>
 :root{--bg:#f3f5f8;--fg:#17202e;--muted:#5a6578;--card:#fff;--line:#cdd3de;--accent:#0b5cad;--err:#a4161a;--ok:#0d6b3a;
 --c-opcode:#ffd6d6;--c-rd:#cfe4ff;--c-f3:#fff0b3;--c-rs1:#cdf2d6;--c-rs2:#e3d9ff;--c-f7:#ffd9ee;--c-imm:#dfe3ea;
@@ -13,7 +13,7 @@ box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:en
 *{box-sizing:border-box}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-main{max-width:1100px;margin:0 auto;padding:16px}
+main{max-width:1440px;margin:0 auto;padding:16px}
 h1{font-size:1.5rem;margin:0}h2{font-size:1.1rem;margin:24px 0 8px}
 .sub{color:var(--muted);margin:2px 0 16px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px}
@@ -33,13 +33,41 @@ code,.mono{font-family:ui-monospace,Consolas,Menlo,monospace}
 .f small{font:.7rem system-ui,sans-serif;color:var(--fg)}
 .opcode{background:var(--c-opcode)}.rd{background:var(--c-rd)}.f3{background:var(--c-f3)}.rs1{background:var(--c-rs1)}.rs2{background:var(--c-rs2)}.f7{background:var(--c-f7)}.imm{background:var(--c-imm)}
 .legend{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.workspace{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(300px,.8fr);gap:12px;align-items:start}
+.stack{display:grid;gap:12px}
+.panel-title{margin:0 0 8px;font-size:1rem}
+.editor textarea{min-height:300px}
+.state-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.placeholder{min-height:100px;display:grid;place-items:center;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:6px;padding:12px}
+.stages{display:grid;grid-template-columns:repeat(5,minmax(70px,1fr));gap:8px}
+.stage{border:1px solid var(--line);border-radius:6px;padding:10px;text-align:center;background:var(--bg)}
+.stage strong{display:block}.stage small{color:var(--muted)}
+.section{margin:16px 0}
+@media(max-width:800px){.workspace{grid-template-columns:1fr}.editor textarea{min-height:220px}}
+@media(max-width:520px){main{padding:12px}.state-grid{grid-template-columns:1fr}.stages{grid-template-columns:repeat(2,1fr)}.stages .stage:last-child{grid-column:1/-1}}
 </style>
 </head>
 <body>
 <main>
-<h1>LIMO Assembler</h1>
+<div class="topbar"><h1>LIMO Pipeline Simulator</h1><span class="hint">The Park · CS3520 · NUL</span></div>
 <p class="sub">Type LIMO assembly (Sesotho mnemonics) and see the 32-bit machine code. Team The Park · CS3520</p>
 
+<section class="section card" aria-labelledby="pipeline-heading">
+  <h2 id="pipeline-heading" class="panel-title">Five-stage pipeline</h2>
+  <div class="stages" aria-label="Pipeline stage layout">
+    <div class="stage"><strong>IF</strong><small>Instruction Fetch</small></div>
+    <div class="stage"><strong>ID</strong><small>Decode</small></div>
+    <div class="stage"><strong>EX</strong><small>Execute</small></div>
+    <div class="stage"><strong>MEM</strong><small>Memory</small></div>
+    <div class="stage"><strong>WB</strong><small>Write Back</small></div>
+  </div>
+  <p class="hint">Pipeline execution controls and live values will connect to the processor core.</p>
+</section>
+
+<div class="workspace">
+<section class="card editor" aria-labelledby="editor-heading">
+  <h2 id="editor-heading" class="panel-title">Program editor and assembler</h2>
 <div class="card">
   <div class="bar">
     <label for="ex">Example program:</label>
@@ -67,6 +95,17 @@ code,.mono{font-family:ui-monospace,Consolas,Menlo,monospace}
 
 <h2>Labels</h2>
 <div class="card"><div id="labels" class="mono hint">No labels.</div></div>
+</section>
+
+<aside class="stack" aria-label="Machine state and narration">
+  <div class="state-grid">
+    <section class="card" aria-labelledby="register-heading"><h2 id="register-heading" class="panel-title">Registers</h2><div class="placeholder">Register values will appear here when the pipeline core is connected.</div></section>
+    <section class="card" aria-labelledby="memory-heading"><h2 id="memory-heading" class="panel-title">Memory</h2><div class="placeholder">Data memory addresses and values will appear here.</div></section>
+  </div>
+  <section class="card" aria-labelledby="narration-heading"><h2 id="narration-heading" class="panel-title">Cycle narration</h2><div class="placeholder">Stage-by-stage explanations will appear here as the program runs.</div></section>
+  <section class="card" aria-labelledby="register-model-heading"><h2 id="register-model-heading" class="panel-title">Pipeline registers</h2><div class="placeholder">IF/ID · ID/EX · EX/MEM · MEM/WB live contents will appear here.</div></section>
+</aside>
+</div>
 </main>
 
 <script>
