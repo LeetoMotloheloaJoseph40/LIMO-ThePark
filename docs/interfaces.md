@@ -11,34 +11,35 @@ Status: PROPOSAL for issue #25. Needs a comment "agreed" from Kabelo (assembler)
 
 Single source of truth: the core's `state` object. The UI reads it and never edits it.
 
-## 2. Assembler output
+## 2. Assembler output (matches src/assembler.js and docs/assembler.md)
 `assemble(sourceText)` is a pure function (same text gives the same result).
 
 ~~~js
 {
   ok: boolean,
-  errors: [ { line: number, message: string } ],   // plain language, 1-based line
+  errors: [ { line: number, message: string, suggestion?: string } ],  // plain language, 1-based line
   lines: [ {
-    lineNo: number,        // source line, 1-based
-    addr: number,          // byte address of the instruction (multiple of 4)
-    source: string,        // original text of the line
-    word: number,          // 32-bit machine word (unsigned)
-    hex: string,           // "0x00500513"
-    bin: string,           // 32 chars
-    fields: [ { name: string, bits: string, value: number } ]  // e.g. opcode, rd, rs1, imm
+    line: number,       // source line, 1-based
+    source: string,     // original text of the line
+    address: number,    // byte address of the instruction (multiple of 4)
+    mnemonic: string, format: string, rv32i: string,
+    word: number,       // 32-bit machine word
+    hex: string,        // "0x00500513"
+    binary: string,     // 32 chars
+    fields: [ { name: string, bits: number, value: number, binary: string } ]  // most significant first
   } ],
-  labels: { [name: string]: number },              // label -> byte address
-  imem: Uint32Array        // 1024 words (4 KiB), program at index addr/4, rest 0
+  labels: { [name: string]: number },   // label -> byte address
+  words: number[]                       // machine words in program order; empty when ok is false
 }
 ~~~
 Rules:
-- If `ok` is false, `lines` and `imem` may be empty; the UI shows `errors` only.
-- Label resolution, encoding and display strings are separate steps inside the assembler; the browser code only formats what is returned.
-- A label may be the last thing in a file. Labels and mnemonics are case-insensitive; the apostrophe is a letter (M1 lexical rules).
-- Registers are accepted by number, alias or Sesotho name (M1 section 2.2).
+- If `ok` is false there is no machine code; the UI shows `errors` only.
+- No browser code in the assembler; the UI only formats what is returned.
+- Labels and mnemonics are case-insensitive and the apostrophe is a letter (M1 lexical rules).
 
 ## 3. Assembler -> core
-The core consumes only `imem`: `createState({ imem })` or `reset(state)` after loading a new program. The core never reads `lines`, `labels` or `errors`.
+The core consumes only `words`. A small glue step copies them into instruction memory:
+`const imem = new Uint32Array(1024); imem.set(result.words);` then `createState({ imem })`, or `reset(state)` after loading a new program. The core never reads `lines`, `labels` or `errors`.
 
 ## 4. Core -> UI
 Module: `src/core/pipelineState.mjs`. Exports: `createState`, `reset`, `step`.
@@ -64,7 +65,7 @@ state = {
 | Valid slot | the instruction text (from `assembly.lines` by pc) plus its hex word |
 | Changed value | `*` marker and bold, never colour alone |
 
-Mapping a `pc` to source text is done in the UI by looking up `assembly.lines` with `addr === pc`; the core stays unaware of source text.
+Mapping a `pc` to source text is done in the UI by looking up `assembly.lines` with `address === pc`; the core stays unaware of source text.
 
 ## 6. Placeholders at M2
 - `step` is a scaffold: it fetches and moves instruction metadata only.
