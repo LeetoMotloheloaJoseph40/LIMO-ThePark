@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LIMO Pipeline Simulator · The Park</title>
+<style>
+:root{--bg:#f3f5f8;--fg:#17202e;--muted:#5a6578;--card:#fff;--line:#cdd3de;--accent:#0b5cad;--err:#a4161a;--ok:#0d6b3a;
+--c-opcode:#ffd6d6;--c-rd:#cfe4ff;--c-f3:#fff0b3;--c-rs1:#cdf2d6;--c-rs2:#e3d9ff;--c-f7:#ffd9ee;--c-imm:#dfe3ea;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f141c;--fg:#e4e8f0;--muted:#9aa5b8;--card:#171e2b;--line:#33405a;--accent:#7db4ff;--err:#ff9a94;--ok:#7be0a4;
+--c-opcode:#6b2b33;--c-rd:#1f4573;--c-f3:#6a561a;--c-rs1:#1f5736;--c-rs2:#48377d;--c-f7:#6b2d57;--c-imm:#3b4252}}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:1440px;margin:0 auto;padding:16px}
+h1{font-size:1.5rem;margin:0}h2{font-size:1.1rem;margin:24px 0 8px}
+.sub{color:var(--muted);margin:2px 0 16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px}
+textarea{width:100%;min-height:260px;font:15px/1.5 ui-monospace,Consolas,Menlo,monospace;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:10px;resize:vertical}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+select,button{font:inherit;padding:6px 12px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg)}
+button{background:var(--accent);color:#fff;border-color:var(--accent);cursor:pointer}
+#status{font-weight:600}.ok{color:var(--ok)}.bad{color:var(--err)}
+ul{margin:0;padding-left:20px}li{margin:4px 0}.hint{color:var(--muted)}
+.wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:760px}
+th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+th{font-size:.85rem;color:var(--muted);font-weight:600}
+code,.mono{font-family:ui-monospace,Consolas,Menlo,monospace}
+.fields{display:flex;gap:2px;flex-wrap:nowrap}
+.f{display:flex;flex-direction:column;align-items:center;padding:2px 4px;border:1px solid var(--line);border-radius:4px;font-family:ui-monospace,Consolas,Menlo,monospace;font-size:.85rem}
+.f small{font:.7rem system-ui,sans-serif;color:var(--fg)}
+.opcode{background:var(--c-opcode)}.rd{background:var(--c-rd)}.f3{background:var(--c-f3)}.rs1{background:var(--c-rs1)}.rs2{background:var(--c-rs2)}.f7{background:var(--c-f7)}.imm{background:var(--c-imm)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.workspace{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(300px,.8fr);gap:12px;align-items:start}
+.stack{display:grid;gap:12px}
+.panel-title{margin:0 0 8px;font-size:1rem}
+.editor textarea{min-height:300px}
+.state-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.placeholder{min-height:100px;display:grid;place-items:center;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:6px;padding:12px}
+.stages{display:grid;grid-template-columns:repeat(5,minmax(70px,1fr));gap:8px}
+.stage{border:1px solid var(--line);border-radius:6px;padding:10px;text-align:center;background:var(--bg)}
+.stage strong{display:block}.stage small{color:var(--muted)}
+.section{margin:16px 0}
+@media(max-width:800px){.workspace{grid-template-columns:1fr}.editor textarea{min-height:220px}}
+@media(max-width:520px){main{padding:12px}.state-grid{grid-template-columns:1fr}.stages{grid-template-columns:repeat(2,1fr)}.stages .stage:last-child{grid-column:1/-1}}
+</style>
+</head>
+<body>
+<main>
+<div class="topbar"><h1>LIMO Pipeline Simulator</h1><span class="hint">The Park · CS3520 · NUL</span></div>
+<p class="sub">Type LIMO assembly (Sesotho mnemonics) and see the 32-bit machine code. Team The Park · CS3520</p>
+
+<section class="section card" aria-labelledby="pipeline-heading">
+  <h2 id="pipeline-heading" class="panel-title">Five-stage pipeline</h2>
+  <div class="stages" aria-label="Pipeline stage layout">
+    <div class="stage"><strong>IF</strong><small>Instruction Fetch</small></div>
+    <div class="stage"><strong>ID</strong><small>Decode</small></div>
+    <div class="stage"><strong>EX</strong><small>Execute</small></div>
+    <div class="stage"><strong>MEM</strong><small>Memory</small></div>
+    <div class="stage"><strong>WB</strong><small>Write Back</small></div>
+  </div>
+  <p class="hint">Pipeline execution controls and live values will connect to the processor core.</p>
+</section>
+
+<div class="workspace">
+<section class="card editor" aria-labelledby="editor-heading">
+  <h2 id="editor-heading" class="panel-title">Program editor and assembler</h2>
+<div class="card">
+  <div class="bar">
+    <label for="ex">Example program:</label>
+    <select id="ex"></select>
+    <button id="go" type="button">Assemble</button>
+    <span id="status" role="status"></span>
+  </div>
+  <textarea id="src" spellcheck="false" aria-label="LIMO source code"></textarea>
+</div>
+
+<h2>Errors</h2>
+<div class="card"><ul id="errors"><li class="hint">None yet.</li></ul></div>
+
+<h2>Machine code</h2>
+<div class="legend" aria-label="Field legend">
+  <span class="f opcode">opcode</span><span class="f rd">rd</span><span class="f f3">funct3</span>
+  <span class="f rs1">rs1</span><span class="f rs2">rs2</span><span class="f f7">funct7</span><span class="f imm">immediate</span>
+</div>
+<div class="card wrap">
+  <table>
+    <thead><tr><th>Addr</th><th>Source</th><th>RV32I</th><th>Hex</th><th>Fields (bit 31 → bit 0)</th></tr></thead>
+    <tbody id="out"></tbody>
+  </table>
+</div>
+
+<h2>Labels</h2>
+<div class="card"><div id="labels" class="mono hint">No labels.</div></div>
+</section>
+
+<aside class="stack" aria-label="Machine state and narration">
+  <div class="state-grid">
+    <section class="card" aria-labelledby="register-heading"><h2 id="register-heading" class="panel-title">Registers</h2><div class="placeholder">Register values will appear here when the pipeline core is connected.</div></section>
+    <section class="card" aria-labelledby="memory-heading"><h2 id="memory-heading" class="panel-title">Memory</h2><div class="placeholder">Data memory addresses and values will appear here.</div></section>
+  </div>
+  <section class="card" aria-labelledby="narration-heading"><h2 id="narration-heading" class="panel-title">Cycle narration</h2><div class="placeholder">Stage-by-stage explanations will appear here as the program runs.</div></section>
+  <section class="card" aria-labelledby="register-model-heading"><h2 id="register-model-heading" class="panel-title">Pipeline registers</h2><div class="placeholder">IF/ID · ID/EX · EX/MEM · MEM/WB live contents will appear here.</div></section>
+</aside>
+</div>
+</main>
+
+<script>
+/*ASSEMBLER*/
+/*EXAMPLES*/
+
+const $ = (id) => document.getElementById(id);
+
+// make an element with a class and some text
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+// which colour class a field gets
+function kind(name) {
+  if (name === 'opcode') return 'opcode';
+  if (name === 'rd') return 'rd';
+  if (name === 'funct3') return 'f3';
+  if (name === 'funct7') return 'f7';
+  if (name === 'rs1') return 'rs1';
+  if (name === 'rs2') return 'rs2';
+  return 'imm';
+}
+
+function hex4(n) { return '0x' + n.toString(16).toUpperCase().padStart(3, '0'); }
+
+function render(result) {
+  // status (text and symbol, never colour alone)
+  const status = $('status');
+  if (result.ok) {
+    status.textContent = '✓ ' + result.lines.length + ' instructions assembled';
+    status.className = 'ok';
+  } else {
+    status.textContent = '✗ ' + result.errors.length + ' error' + (result.errors.length === 1 ? '' : 's');
+    status.className = 'bad';
+  }
+
+  // errors
+  const errors = $('errors');
+  errors.textContent = '';
+  if (result.errors.length === 0) errors.appendChild(el('li', 'hint', 'No errors.'));
+  for (const e of result.errors) {
+    const li = el('li');
+    li.appendChild(el('strong', 'bad', e.message));
+    if (e.suggestion) li.appendChild(el('div', 'hint', e.suggestion));
+    errors.appendChild(li);
+  }
+
+  // machine code table
+  const body = $('out');
+  body.textContent = '';
+  for (const line of result.lines) {
+    const row = el('tr');
+    row.appendChild(el('td', 'mono', hex4(line.address)));
+    row.appendChild(el('td', 'mono', line.source.trim()));
+    row.appendChild(el('td', 'mono', line.rv32i));
+    row.appendChild(el('td', 'mono', line.hex));
+    const cell = el('td');
+    const box = el('div', 'fields');
+    for (const f of line.fields) {
+      const part = el('span', 'f ' + kind(f.name), f.binary);
+      part.appendChild(el('small', '', f.name));
+      part.title = f.name + ' = ' + f.value;
+      box.appendChild(part);
+    }
+    cell.appendChild(box);
+    row.appendChild(cell);
+    body.appendChild(row);
+  }
+
+  // labels
+  const names = Object.keys(result.labels);
+  $('labels').textContent = names.length === 0 ? 'No labels.'
+    : names.map((n) => n + ' = ' + hex4(result.labels[n])).join('    ');
+}
+
+function run() { render(LIMO.assemble($('src').value)); }
+
+// set up the example list
+for (const name of Object.keys(EXAMPLES)) {
+  const option = el('option', '', name);
+  option.value = name;
+  $('ex').appendChild(option);
+}
+$('ex').addEventListener('change', () => { $('src').value = EXAMPLES[$('ex').value]; run(); });
+$('go').addEventListener('click', run);
+$('src').addEventListener('input', run);
+
+$('src').value = EXAMPLES[$('ex').value];
+run();
+</script>
+</body>
+</html>

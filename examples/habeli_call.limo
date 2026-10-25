@@ -1,0 +1,11 @@
+# habeli_call - calls a procedure that doubles its argument (new in ISA v1.1)
+# Exercises tlola with a link register (hae = ra) and khutla (return), which no M1
+# sample program used. "habeli" = twice.
+# Expected final state: t0 = 21, t1 = 42, hae (p1) = 8, MEM[0] = 42
+# N = 6, 0 stalls, 4 flushed (tlola and khutla each taken) -> 14 cycles
+kopanyah t0, noto, 21     # argument = 21
+tlola hae, habeli         # call: hae = address of the next instruction (8)
+boloka t1, 0(noto)        # MEM[0] = result
+qeta: lekana noto, noto, qeta   # halt
+habeli: kopanya t1, t0, t0      # t1 = 2 * t0
+khutla noto, 0(hae)       # return to the address in hae
