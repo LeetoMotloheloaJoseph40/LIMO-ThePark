@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "project": "LIMO-ThePark",
+  "note": "Expected outcomes are reference targets from M2 planning notes. Confirm against the specification and simulator before treating them as verified.",
+  "programs": [
+    {
+      "id": "P1",
+      "file": "examples/CountFirstN.limo",
+      "expected": {
+        "registers": {
+          "t0": 5,
+          "t1": 15,
+          "t2": 6
+        },
+        "instruction_count": 25,
+        "stalls": 0,
+        "flushed": 12,
+        "cycles": 41
+      }
+    },
+    {
+      "id": "P2",
+      "file": "examples/compare_2_int.limo",
+      "expected": {
+        "memory": {
+          "0": 25,
+          "4": 17,
+          "16": 25
+        },
+        "registers": {
+          "t0": 17,
+          "n0": 25,
+          "n1": 17,
+          "n2": 25
+        },
+        "instruction_count": 11,
+        "stalls": 1,
+        "flushed": 2,
+        "cycles": 18
+      }
+    },
+    {
+      "id": "P3",
+      "file": "examples/count_even.limo",
+      "expected": {
+        "input_array": [
+          4,
+          7,
+          10,
+          3,
+          8
+        ],
+        "registers": {
+          "t1": 3,
+          "t2": 5,
+          "t5": 16,
+          "t6": 0,
+          "t7": 1
+        },
+        "instruction_count": 111,
+        "stalls": 5,
+        "flushed": 46,
+        "cycles": 166
+      }
+    }
+  ],
+  "hazard_cases": [
+    {
+      "id": "D1",
+      "name": "Immediate ALU dependency",
+      "expected": "EX/MEM forwarding; no stall"
+    },
+    {
+      "id": "D2",
+      "name": "Later ALU dependency",
+      "expected": "MEM/WB forwarding when needed; no stall"
+    },
+    {
+      "id": "D3",
+      "name": "Immediate load-use dependency",
+      "expected": "One stall, then correct loaded value"
+    },
+    {
+      "id": "D4",
+      "name": "Store-data dependency",
+      "expected": "Store writes newest source value"
+    },
+    {
+      "id": "D5",
+      "name": "Link-register dependency",
+      "expected": "Correct PC+4 value reaches dependent instruction"
+    },
+    {
+      "id": "D6",
+      "name": "Zero register",
+      "expected": "p0 always reads zero and cannot receive a forwarded non-zero value"
+    },
+    {
+      "id": "C1",
+      "name": "Taken branch",
+      "expected": "Redirect and flush according to agreed branch-resolution stage"
+    },
+    {
+      "id": "C2",
+      "name": "Not-taken branch",
+      "expected": "No branch redirect flush"
+    },
+    {
+      "id": "C3",
+      "name": "khutla control flow",
+      "expected": "Confirm resolution stage and flush rule with team"
+    }
+  ]
+}
