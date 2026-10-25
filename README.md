@@ -1,47 +1,33 @@
-# LIMO – The Park
+# LIMO-ThePark — Test Harness Deliverable (Scaffold)
 
-A Sesotho-mnemonic, RV32I-derived instruction set (**LIMO**) and a browser-based
-five-stage pipeline simulator. CS3520 Computer Organisation and Architecture,
-National University of Lesotho, AY 2026/2027.
+## Purpose
+This dependency-free scaffold checks that the agreed example programs exist and records the expected outcomes the team should verify against the simulator.
 
-**Live simulator:** <https://leetomotloheloajoseph40.github.io/LIMO-ThePark/> *(live once GitHub Pages is enabled)*
-**Demo video:** (add unlisted YouTube link for M5)
+**Important limitation:** The project files inspected did not include a simulator/interpreter implementation or a documented command for executing `.limo` files. This scaffold does not claim to execute programs or prove pipeline behaviour. It validates the manifest and program-file presence only.
 
-## Team and roles
+## Layout
+- `run_tests.sh` — one-command entry point.
+- `tests/harness/run_harness.py` — standard-library Python runner.
+- `tests/harness/test_manifest.json` — programs and expected outcomes.
+- `tests/hazards/README.md` — hazard cases to implement when the simulator API is known.
+- `tests/programs/README.md` — sample-program verification checklist.
 
-Roles rotate weekly. Current week: **M?**
-
-| Member | GitHub | Role this week |
-|---|---|---|
-| L. Motloheloa | @LeetoMotloheloaJoseph40 | Team Leader, Pipeline and Implementation Lead |
-| T. Liphoto | @thaboliphoto | Interface Lead |
-| R. Moseme | @Moseme | ISA Architect |
-| K. Ramaili | @amira2K5 | Design and Test Lead |
-| K. Khobotle | @KhobotleHelen | Assembler Lead |
-| S. Senekane | @Charity6-dev | Scrum and Release Lead |
-
-## Repository layout
-
-| Path | Contents |
-|---|---|
-| `src/` | The simulator (static site, published from here) |
-| `tests/` | Unit tests and LIMO test programs |
-| `examples/` | Sample `.limo` programs |
-| `docs/` | ISA specification, design, test report, team charter, sprint notes |
-| `AI_USE.md` | AI usage declaration |
-
-## Run locally
+## Run
+From the repository root:
 
 ```bash
-npm test                      # unit tests (Node 20+)
-npx serve src                 # / open src/index.html in a browser
+chmod +x run_tests.sh
+./run_tests.sh
 ```
 
-## How we work
+The harness checks manifest structure and required example files. It reports that simulator execution is not configured until the team confirms a real simulator command and output format.
 
-Feature branch -> pull request -> review by another member -> merge. `main` is protected.
-Each milestone is a tagged release (`m1`–`m4`, `v1.0`). See `docs/team-charter.md`.
+Do not set `LIMO_RUNNER` to a guessed command.
 
-## Licence
+## Next integration work
+Once the simulator/interpreter and documented CLI are available, update `tests/harness/run_harness.py` to execute programs and parse real output. Then assert registers, memory, stalls, flushes, and cycles against confirmed expected values.
 
-MIT, see `LICENSE`.
+## Open design questions
+- Is `khutla` resolved in ID or EX?
+- What exact rule counts flushed instructions/cycles?
+- How are registers, memory, stalls, flushes and cycles reported by the simulator?
