@@ -16,8 +16,8 @@ Roles rotate weekly. Current week: **M?**
 | L. Motloheloa | @LeetoMotloheloaJoseph40 | Team Leader, Pipeline and Implementation Lead |
 | T. Liphoto | @thaboliphoto | Interface Lead |
 | R. Moseme | @Moseme | ISA Architect |
-| K. Ramaili | @KhobotleHelen | Design and Test Lead |
-| K. Khobotle | @amira2K5 | Assembler Lead |
+| K. Ramaili | @amira2K5 | Design and Test Lead |
+| K. Khobotle | @KhobotleHelen | Assembler Lead |
 | S. Senekane | @Charity6-dev | Scrum and Release Lead |
 
 ## Repository layout
