@@ -34,7 +34,7 @@ Roles rotate weekly. Current week: **M?**
 
 ```bash
 npm test                      # unit tests (Node 20+)
-npx serve src                 # or open src/index.html in a browser
+npx serve src                 # / open src/index.html in a browser
 ```
 
 ## How we work
