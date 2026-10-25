@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LIMO Pipeline Simulator · The Park</title>
+<style>
+:root{--bg:#f3f5f8;--fg:#17202e;--muted:#5a6578;--card:#fff;--line:#cdd3de;--accent:#0b5cad;--err:#a4161a;--ok:#0d6b3a;
+--c-opcode:#ffd6d6;--c-rd:#cfe4ff;--c-f3:#fff0b3;--c-rs1:#cdf2d6;--c-rs2:#e3d9ff;--c-f7:#ffd9ee;--c-imm:#dfe3ea;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f141c;--fg:#e4e8f0;--muted:#9aa5b8;--card:#171e2b;--line:#33405a;--accent:#7db4ff;--err:#ff9a94;--ok:#7be0a4;
+--c-opcode:#6b2b33;--c-rd:#1f4573;--c-f3:#6a561a;--c-rs1:#1f5736;--c-rs2:#48377d;--c-f7:#6b2d57;--c-imm:#3b4252}}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:1440px;margin:0 auto;padding:16px}
+h1{font-size:1.5rem;margin:0}h2{font-size:1.1rem;margin:24px 0 8px}
+.sub{color:var(--muted);margin:2px 0 16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px}
+textarea{width:100%;min-height:260px;font:15px/1.5 ui-monospace,Consolas,Menlo,monospace;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:10px;resize:vertical}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+select,button{font:inherit;padding:6px 12px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg)}
+button{background:var(--accent);color:#fff;border-color:var(--accent);cursor:pointer}
+#status{font-weight:600}.ok{color:var(--ok)}.bad{color:var(--err)}
+ul{margin:0;padding-left:20px}li{margin:4px 0}.hint{color:var(--muted)}
+.wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:760px}
+th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+th{font-size:.85rem;color:var(--muted);font-weight:600}
+code,.mono{font-family:ui-monospace,Consolas,Menlo,monospace}
+.fields{display:flex;gap:2px;flex-wrap:nowrap}
+.f{display:flex;flex-direction:column;align-items:center;padding:2px 4px;border:1px solid var(--line);border-radius:4px;font-family:ui-monospace,Consolas,Menlo,monospace;font-size:.85rem}
+.f small{font:.7rem system-ui,sans-serif;color:var(--fg)}
+.opcode{background:var(--c-opcode)}.rd{background:var(--c-rd)}.f3{background:var(--c-f3)}.rs1{background:var(--c-rs1)}.rs2{background:var(--c-rs2)}.f7{background:var(--c-f7)}.imm{background:var(--c-imm)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.workspace{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(300px,.8fr);gap:12px;align-items:start}
+.stack{display:grid;gap:12px}
+.panel-title{margin:0 0 8px;font-size:1rem}
+.editor textarea{min-height:300px}
+.state-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.placeholder{min-height:100px;display:grid;place-items:center;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:6px;padding:12px}
+.stages{display:grid;grid-template-columns:repeat(5,minmax(70px,1fr));gap:8px}
+.stage{border:1px solid var(--line);border-radius:6px;padding:10px;text-align:center;background:var(--bg)}
+.stage strong{display:block}.stage small{color:var(--muted)}
+.section{margin:16px 0}
+@media(max-width:800px){.workspace{grid-template-columns:1fr}.editor textarea{min-height:220px}}
+@media(max-width:520px){main{padding:12px}.state-grid{grid-template-columns:1fr}.stages{grid-template-columns:repeat(2,1fr)}.stages .stage:last-child{grid-column:1/-1}}
+</style>
+</head>
+<body>
+<main>
+<div class="topbar"><h1>LIMO Pipeline Simulator</h1><span class="hint">The Park · CS3520 · NUL</span></div>
+<p class="sub">Type LIMO assembly (Sesotho mnemonics) and see the 32-bit machine code. Team The Park · CS3520</p>
+
+<section class="section card" aria-labelledby="pipeline-heading">
+  <h2 id="pipeline-heading" class="panel-title">Five-stage pipeline</h2>
+  <div class="stages" aria-label="Pipeline stage layout">
+    <div class="stage"><strong>IF</strong><small>Instruction Fetch</small></div>
+    <div class="stage"><strong>ID</strong><small>Decode</small></div>
+    <div class="stage"><strong>EX</strong><small>Execute</small></div>
+    <div class="stage"><strong>MEM</strong><small>Memory</small></div>
+    <div class="stage"><strong>WB</strong><small>Write Back</small></div>
+  </div>
+  <p class="hint">Pipeline execution controls and live values will connect to the processor core.</p>
+</section>
+
+<div class="workspace">
+<section class="card editor" aria-labelledby="editor-heading">
+  <h2 id="editor-heading" class="panel-title">Program editor and assembler</h2>
+<div class="card">
+  <div class="bar">
+    <label for="ex">Example program:</label>
+    <select id="ex"></select>
+    <button id="go" type="button">Assemble</button>
+    <span id="status" role="status"></span>
+  </div>
+  <textarea id="src" spellcheck="false" aria-label="LIMO source code"></textarea>
+</div>
+
+<h2>Errors</h2>
+<div class="card"><ul id="errors"><li class="hint">None yet.</li></ul></div>
+
+<h2>Machine code</h2>
+<div class="legend" aria-label="Field legend">
+  <span class="f opcode">opcode</span><span class="f rd">rd</span><span class="f f3">funct3</span>
+  <span class="f rs1">rs1</span><span class="f rs2">rs2</span><span class="f f7">funct7</span><span class="f imm">immediate</span>
+</div>
+<div class="card wrap">
+  <table>
+    <thead><tr><th>Addr</th><th>Source</th><th>RV32I</th><th>Hex</th><th>Fields (bit 31 → bit 0)</th></tr></thead>
+    <tbody id="out"></tbody>
+  </table>
+</div>
+
+<h2>Labels</h2>
+<div class="card"><div id="labels" class="mono hint">No labels.</div></div>
+</section>
+
+<aside class="stack" aria-label="Machine state and narration">
+  <div class="state-grid">
+    <section class="card" aria-labelledby="register-heading"><h2 id="register-heading" class="panel-title">Registers</h2><div class="placeholder">Register values will appear here when the pipeline core is connected.</div></section>
+    <section class="card" aria-labelledby="memory-heading"><h2 id="memory-heading" class="panel-title">Memory</h2><div class="placeholder">Data memory addresses and values will appear here.</div></section>
+  </div>
+  <section class="card" aria-labelledby="narration-heading"><h2 id="narration-heading" class="panel-title">Cycle narration</h2><div class="placeholder">Stage-by-stage explanations will appear here as the program runs.</div></section>
+  <section class="card" aria-labelledby="register-model-heading"><h2 id="register-model-heading" class="panel-title">Pipeline registers</h2><div class="placeholder">IF/ID · ID/EX · EX/MEM · MEM/WB live contents will appear here.</div></section>
+</aside>
+</div>
+</main>
+
+<script>
+const LIMO = (function () {
+// =====================================================================================
+// isa.js  -  the LIMO ISA written as tables.
+//
+// In your M1 PDF these tables are sections 2.2 (registers), 2.3 (immediate ranges) and
+// 2.4 (instruction set). Here they are the same information, written so a program can
+// look things up. Every other file imports these tables, so if the ISA ever changes,
+// this is the ONLY file you edit.
+// =====================================================================================
+
+// -------------------------------------------------------------------------------------
+// TABLE 1: the instructions (M1 section 2.4).
+//   fmt     = the format (R, I, S, B or J)          -> M1 section 2.3
+//   opcode  = bits 6-0                              -> same as RV32I
+//   funct3  = bits 14-12     funct7 = bits 31-25    -> same as RV32I
+//   syntax  = how the operands are written (used by the assembler to know what to expect)
+//   usage   = the text shown in error messages
+//   rv32i   = the RV32I instruction with the same bit pattern
+// -------------------------------------------------------------------------------------
+const INSTRUCTIONS = {
+  kopanya:   { fmt: 'R', opcode: 0b0110011, funct3: 0b000, funct7: 0b0000000, syntax: 'RRR',    usage: 'kopanya rd, rs1, rs2',      rv32i: 'add'  },
+  tlosa:     { fmt: 'R', opcode: 0b0110011, funct3: 0b000, funct7: 0b0100000, syntax: 'RRR',    usage: 'tlosa rd, rs1, rs2',        rv32i: 'sub'  },
+  kopanyah:  { fmt: 'I', opcode: 0b0010011, funct3: 0b000,                    syntax: 'RRI',    usage: 'kopanyah rd, rs1, imm',     rv32i: 'addi' },
+  le:        { fmt: 'R', opcode: 0b0110011, funct3: 0b111, funct7: 0b0000000, syntax: 'RRR',    usage: 'le rd, rs1, rs2',           rv32i: 'and'  },
+  kapa:      { fmt: 'R', opcode: 0b0110011, funct3: 0b110, funct7: 0b0000000, syntax: 'RRR',    usage: 'kapa rd, rs1, rs2',         rv32i: 'or'   },
+  chetse:    { fmt: 'I', opcode: 0b0010011, funct3: 0b001, funct7: 0b0000000, syntax: 'RRS',    usage: 'chetse rd, rs1, shamt',     rv32i: 'slli', shift: true },
+  tshela:    { fmt: 'I', opcode: 0b0000011, funct3: 0b010,                    syntax: 'LOAD',   usage: 'tshela rd, imm(rs1)',       rv32i: 'lw'   },
+  boloka:    { fmt: 'S', opcode: 0b0100011, funct3: 0b010,                    syntax: 'STORE',  usage: 'boloka rs2, imm(rs1)',      rv32i: 'sw'   },
+  lekana:    { fmt: 'B', opcode: 0b1100011, funct3: 0b000,                    syntax: 'BRANCH', usage: 'lekana rs1, rs2, label',    rv32i: 'beq'  },
+  haelekane: { fmt: 'B', opcode: 0b1100011, funct3: 0b001,                    syntax: 'BRANCH', usage: 'haelekane rs1, rs2, label', rv32i: 'bne'  },
+  nyane:     { fmt: 'B', opcode: 0b1100011, funct3: 0b100,                    syntax: 'BRANCH', usage: 'nyane rs1, rs2, label',     rv32i: 'blt'  },
+  tlola:     { fmt: 'J', opcode: 0b1101111,                                   syntax: 'JUMP',   usage: 'tlola rd, label',           rv32i: 'jal'  },
+  khutla:    { fmt: 'I', opcode: 0b1100111, funct3: 0b000,                    syntax: 'LOAD',   usage: 'khutla rd, imm(rs1)',       rv32i: 'jalr' },
+};
+
+// -------------------------------------------------------------------------------------
+// TABLE 2: the registers (M1 section 2.2). A name on the left, a register number on the right.
+// The assembler accepts the number (p5), the alias (n0) or the Sesotho name (noto).
+// -------------------------------------------------------------------------------------
+const REGISTER_LOOKUP = {};
+
+// p0, p1, ... p31  ->  0, 1, ... 31   (a small loop so we do not type 32 lines)
+for (let number = 0; number < 32; number++) {
+  REGISTER_LOOKUP['p' + number] = number;
+}
+
+// Special registers: Sesotho name and alias
+REGISTER_LOOKUP.noto = 0;    REGISTER_LOOKUP.zero = 0;   // p0  hard-wired zero
+REGISTER_LOOKUP.hae = 1;     REGISTER_LOOKUP.ra = 1;     // p1  return address
+REGISTER_LOOKUP.lesupa = 2;  REGISTER_LOOKUP.sp = 2;     // p2  stack pointer
+
+// p5-p7 temporaries
+REGISTER_LOOKUP.n0 = 5;   REGISTER_LOOKUP.n1 = 6;   REGISTER_LOOKUP.n2 = 7;
+// p8-p9 saved
+REGISTER_LOOKUP.b0 = 8;   REGISTER_LOOKUP.b1 = 9;
+// p10-p17 arguments / return values
+REGISTER_LOOKUP.t0 = 10;  REGISTER_LOOKUP.t1 = 11;  REGISTER_LOOKUP.t2 = 12;  REGISTER_LOOKUP.t3 = 13;
+REGISTER_LOOKUP.t4 = 14;  REGISTER_LOOKUP.t5 = 15;  REGISTER_LOOKUP.t6 = 16;  REGISTER_LOOKUP.t7 = 17;
+// p18-p27 saved
+REGISTER_LOOKUP.b2 = 18;  REGISTER_LOOKUP.b3 = 19;  REGISTER_LOOKUP.b4 = 20;  REGISTER_LOOKUP.b5 = 21;
+REGISTER_LOOKUP.b6 = 22;  REGISTER_LOOKUP.b7 = 23;  REGISTER_LOOKUP.b8 = 24;  REGISTER_LOOKUP.b9 = 25;
+REGISTER_LOOKUP.b10 = 26; REGISTER_LOOKUP.b11 = 27;
+// p28-p31 temporaries
+REGISTER_LOOKUP.n3 = 28;  REGISTER_LOOKUP.n4 = 29;  REGISTER_LOOKUP.n5 = 30;  REGISTER_LOOKUP.n6 = 31;
+
+// -------------------------------------------------------------------------------------
+// TABLE 3: immediate ranges (M1 section 2.3).
+// -------------------------------------------------------------------------------------
+const RANGES = {
+  I:     { min: -2048,    max: 2047 },      // kopanyah, tshela, khutla
+  S:     { min: -2048,    max: 2047 },      // boloka
+  SHAMT: { min: 0,        max: 31 },        // chetse
+  B:     { min: -4096,    max: 4094 },      // branches, in bytes (even)
+  J:     { min: -1048576, max: 1048574 },   // tlola, in bytes (even)
+};
+
+const INSTRUCTION_MEMORY_BYTES = 4096;   // 0x000 - 0xFFF  (M1 section 2.1)
+
+// -------------------------------------------------------------------------------------
+// Apostrophe rule (M1 section 2.4). If a mnemonic ever contains an apostrophe, such as ts'ela,
+// then "tsela" is accepted as an alias - but only if "tsela" is not already another mnemonic.
+// Today no mnemonic has an apostrophe, so this table stays empty. It is ready for the future.
+// -------------------------------------------------------------------------------------
+const MNEMONIC_ALIASES = {};
+const allMnemonics = Object.keys(INSTRUCTIONS);
+for (const name of allMnemonics) {
+  if (name.includes("'")) {
+    const withoutApostrophe = name.split("'").join('');
+    if (!allMnemonics.includes(withoutApostrophe)) {
+      MNEMONIC_ALIASES[withoutApostrophe] = name;
+    }
+  }
+}
+
+// =====================================================================================
+// assembler.js  -  turns LIMO assembly text into 32-bit machine code.
+//
+//   assemble(text)  returns  { ok, lines, errors, labels, words }
+//
+//   ok      true if there were no errors
+//   lines   one record per instruction: address, hex, binary, and the fields (for colours)
+//   errors  one record per mistake: line number, plain-language message, suggestion
+//   labels  the label table, e.g. { loop: 12, done: 28 }
+//   words   the machine code as a list of numbers (empty if there were errors)
+//
+// HOW TO READ THIS FILE: go from top to bottom. It is in the order you would do the job by hand.
+//   PART 1  small helper tools (reading numbers and registers, cutting out bits)
+//   PART 2  how each instruction FORMAT is laid out in 32 bits (your M1 format diagram)
+//   PART 3  reading the operands of one instruction
+//   PART 4  PASS 1: find the labels and give every instruction an address
+//   PART 5  PASS 2: encode every instruction
+//   PART 6  assemble(): runs pass 1, then pass 2
+//
+// A note on "throw" and "catch": when the assembler finds a mistake in a line, it "throws"
+// a problem. Think of it as a jump to an error handler: tlola hae, error_handler.
+// The handler ("catch") records the problem and carries on with the next line, so the
+// student sees ALL their mistakes at once instead of only the first.
+// =====================================================================================
+
+
+
+
+// =====================================================================================
+// PART 1: HELPER TOOLS
+// =====================================================================================
+
+// Is this name in this table?  ("Does the table have a row called 'loop'?")
+function hasKey(table, key) {
+  return Object.prototype.hasOwnProperty.call(table, key);
+}
+
+// Make a "problem" that can be thrown (jumped to the error handler).
+function problem(message, suggestion) {
+  const error = new Error(message);
+  error.suggestion = suggestion || '';
+  error.isLimoProblem = true;      // lets the handler tell our problems from real bugs
+  return error;
+}
+
+// Is every character of `text` one of the characters in `allowed`?  (and text is not empty)
+function allCharsIn(text, allowed) {
+  if (text.length === 0) return false;
+  for (const ch of text) {
+    if (!allowed.includes(ch)) return false;
+  }
+  return true;
+}
+
+// ---- Clean up one line of source text -------------------------------------------------
+// 1. cut off the comment (everything from # or ; onwards)
+// 2. turn curly apostrophes into the plain ' (M1 section 2.4)
+// 3. turn tabs into spaces, remove spaces at both ends, make everything lower case
+//    (LIMO is case-insensitive)
+function cleanLine(raw) {
+  let text = raw;
+
+  let cutAt = text.length;
+  const hashPos = text.indexOf('#');
+  const semicolonPos = text.indexOf(';');
+  if (hashPos !== -1 && hashPos < cutAt) cutAt = hashPos;
+  if (semicolonPos !== -1 && semicolonPos < cutAt) cutAt = semicolonPos;
+  text = text.slice(0, cutAt);
+
+  text = text.split('\u2018').join("'");   // left curly '
+  text = text.split('\u2019').join("'");   // right curly '
+  text = text.split('\u02BC').join("'");   // modifier letter apostrophe
+  text = text.split('\t').join(' ');
+
+  return text.trim().toLowerCase();
+}
+
+// ---- Numbers ----------------------------------------------------------------------------
+// Is this text a number?  Accepts 10, -5, +7, 0x1F, -0x10.
+function isNumber(text) {
+  let body = text;
+  if (body.startsWith('-') || body.startsWith('+')) body = body.slice(1);
+  let allowedDigits = '0123456789';
+  if (body.startsWith('0x')) {
+    body = body.slice(2);
+    allowedDigits = '0123456789abcdef';
+  }
+  return allCharsIn(body, allowedDigits);
+}
+
+// Turn number text into a real number.
+function toNumber(text) {
+  let body = text;
+  let negative = false;
+  if (body.startsWith('-')) { negative = true; body = body.slice(1); }
+  else if (body.startsWith('+')) { body = body.slice(1); }
+
+  let value;
+  if (body.startsWith('0x')) value = parseInt(body.slice(2), 16);
+  else value = parseInt(body, 10);
+
+  if (negative) return -value;
+  return value;
+}
+
+// ---- "Did you mean ...?" helper (an optional extra, just a spell-checker) ----------------
+// editDistance = how many single-letter changes turn word a into word b.
+// "kopanyaa" -> "kopanya" is distance 1 (delete one letter).
+function editDistance(a, b) {
+  const table = [];
+  for (let i = 0; i <= a.length; i++) {
+    table.push([]);
+    for (let j = 0; j <= b.length; j++) table[i].push(0);
+  }
+  for (let i = 0; i <= a.length; i++) table[i][0] = i;
+  for (let j = 0; j <= b.length; j++) table[0][j] = j;
+
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      let cost = 1;
+      if (a[i - 1] === b[j - 1]) cost = 0;
+      let best = table[i - 1][j] + 1;                          // delete
+      if (table[i][j - 1] + 1 < best) best = table[i][j - 1] + 1;           // insert
+      if (table[i - 1][j - 1] + cost < best) best = table[i - 1][j - 1] + cost; // change
+      table[i][j] = best;
+    }
+  }
+  return table[a.length][b.length];
+}
+
+// The candidate most like `word`, or null if none is within maxDistance.
+function closestWord(word, candidates, maxDistance) {
+  let bestWord = null;
+  let bestDistance = maxDistance + 1;
+  for (const candidate of candidates) {
+    const distance = editDistance(word, candidate);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestWord = candidate;
+    }
+  }
+  return bestWord;
+}
+
+// ---- Registers ---------------------------------------------------------------------------
+// "t0" -> 10,  "noto" -> 0,  "p31" -> 31.   Like looking a name up in spec section 2.2.
+function getRegister(name) {
+  if (hasKey(REGISTER_LOOKUP, name)) {
+    return REGISTER_LOOKUP[name];
+  }
+  // looks like p-something but not in the table, e.g. p32
+  if (name.length >= 2 && name[0] === 'p' && allCharsIn(name.slice(1), '0123456789')) {
+    throw problem(`"${name}" is not a LIMO register.`, 'Registers run from p0 to p31.');
+  }
+  const guess = closestWord(name, Object.keys(REGISTER_LOOKUP), 1);
+  let hint = 'Registers are p0-p31, or names like noto, hae, lesupa, n0, b0, t0.';
+  if (guess !== null) hint = `Did you mean "${guess}"? ` + hint;
+  throw problem(`"${name}" is not a LIMO register.`, hint);
+}
+
+// ---- Immediates --------------------------------------------------------------------------
+// Read a number and check it fits the allowed range (M1 section 2.3).
+function getImmediate(text, range, what) {
+  if (!isNumber(text)) {
+    throw problem(`"${text}" is not a number.`, `Write the ${what} in decimal (10) or hex (0x0A).`);
+  }
+  const value = toNumber(text);
+  if (value < range.min || value > range.max) {
+    throw problem(
+      `The ${what} ${text} does not fit: allowed range is ${range.min} to ${range.max}.`,
+      'Build bigger values with kopanyah + chetse + kopanya.');
+  }
+  return value;
+}
+
+// ---- Memory operands:  4(p1)  means "offset 4, base register p1" -------------------------
+function getMemoryOperand(text, range) {
+  const open = text.indexOf('(');
+  const close = text.lastIndexOf(')');
+  if (open === -1 || close !== text.length - 1 || close < open) {
+    throw problem(`"${text}" is not a memory operand.`, 'Write it as offset(register), for example 4(p1).');
+  }
+  let offsetText = text.slice(0, open).trim();
+  if (offsetText === '') offsetText = '0';                   // "(p1)" means offset 0
+  const registerText = text.slice(open + 1, close).trim();
+  return {
+    offset: getImmediate(offsetText, range, 'offset'),
+    register: getRegister(registerText),
+  };
+}
+
+// ---- Cutting out bits ----------------------------------------------------------------------
+// getBits(value, 12, 5) returns bits 12 down to 5 of value, like writing imm[12:5].
+//   Step 1:  value >> low           shift right so bit `low` becomes bit 0     (like a right shift)
+//   Step 2:  & mask                 keep only the lowest (high-low+1) bits     (like `le` with a mask)
+// For a negative number the bits are its two's complement, exactly as in hardware.
+function getBits(value, high, low) {
+  const width = high - low + 1;
+  const mask = (1 << width) - 1;          // width ones, e.g. width 5 -> 0b11111
+  return (value >> low) & mask;
+}
+
+
+// =====================================================================================
+// PART 2: THE FORMATS - how each instruction is laid out in 32 bits (M1 section 2.3)
+// =====================================================================================
+
+// A "field" is one coloured box in the format diagram: its name, its width in bits, its value.
+function makeField(name, width, value) {
+  return { name: name, bits: width, value: value };
+}
+
+// Returns the list of fields, LEFT TO RIGHT (bit 31 first), exactly as in your M1 diagram.
+// `v` holds the values: v.rd, v.rs1, v.rs2 and v.imm (whichever the instruction uses).
+function buildFields(ins, v) {
+  if (ins.fmt === 'R') {
+    //  funct7 | rs2 | rs1 | funct3 | rd | opcode
+    return [
+      makeField('funct7', 7, ins.funct7),
+      makeField('rs2', 5, v.rs2),
+      makeField('rs1', 5, v.rs1),
+      makeField('funct3', 3, ins.funct3),
+      makeField('rd', 5, v.rd),
+      makeField('opcode', 7, ins.opcode),
+    ];
+  }
+
+  if (ins.fmt === 'I' && ins.shift) {
+    //  funct7 | shamt | rs1 | funct3 | rd | opcode          (chetse)
+    return [
+      makeField('funct7', 7, ins.funct7),
+      makeField('shamt', 5, v.imm),
+      makeField('rs1', 5, v.rs1),
+      makeField('funct3', 3, ins.funct3),
+      makeField('rd', 5, v.rd),
+      makeField('opcode', 7, ins.opcode),
+    ];
+  }
+
+  if (ins.fmt === 'I') {
+    //  imm[11:0] | rs1 | funct3 | rd | opcode
+    return [
+      makeField('imm[11:0]', 12, getBits(v.imm, 11, 0)),
+      makeField('rs1', 5, v.rs1),
+      makeField('funct3', 3, ins.funct3),
+      makeField('rd', 5, v.rd),
+      makeField('opcode', 7, ins.opcode),
+    ];
+  }
+
+  if (ins.fmt === 'S') {
+    //  imm[11:5] | rs2 | rs1 | funct3 | imm[4:0] | opcode    (the immediate is split in two)
+    return [
+      makeField('imm[11:5]', 7, getBits(v.imm, 11, 5)),
+      makeField('rs2', 5, v.rs2),
+      makeField('rs1', 5, v.rs1),
+      makeField('funct3', 3, ins.funct3),
+      makeField('imm[4:0]', 5, getBits(v.imm, 4, 0)),
+      makeField('opcode', 7, ins.opcode),
+    ];
+  }
+
+  if (ins.fmt === 'B') {
+    //  imm[12] | imm[10:5] | rs2 | rs1 | funct3 | imm[4:1] | imm[11] | opcode
+    //  (bit 0 of a branch offset is always 0, so it is not stored)
+    return [
+      makeField('imm[12]', 1, getBits(v.imm, 12, 12)),
+      makeField('imm[10:5]', 6, getBits(v.imm, 10, 5)),
+      makeField('rs2', 5, v.rs2),
+      makeField('rs1', 5, v.rs1),
+      makeField('funct3', 3, ins.funct3),
+      makeField('imm[4:1]', 4, getBits(v.imm, 4, 1)),
+      makeField('imm[11]', 1, getBits(v.imm, 11, 11)),
+      makeField('opcode', 7, ins.opcode),
+    ];
+  }
+
+  if (ins.fmt === 'J') {
+    //  imm[20] | imm[10:1] | imm[11] | imm[19:12] | rd | opcode
+    return [
+      makeField('imm[20]', 1, getBits(v.imm, 20, 20)),
+      makeField('imm[10:1]', 10, getBits(v.imm, 10, 1)),
+      makeField('imm[11]', 1, getBits(v.imm, 11, 11)),
+      makeField('imm[19:12]', 8, getBits(v.imm, 19, 12)),
+      makeField('rd', 5, v.rd),
+      makeField('opcode', 7, ins.opcode),
+    ];
+  }
+
+  throw new Error('Unknown format ' + ins.fmt);   // cannot happen unless isa.js is wrong
+}
+
+// Glue the fields together into one 32-bit number.
+// For each field: "make room on the right, then put the field there" (shift left, then OR).
+// We multiply by 2^bits instead of using << because JavaScript's << would turn a number
+// with bit 31 set into a negative number.
+function fieldsToWord(fields) {
+  let word = 0;
+  for (const field of fields) {
+    word = word * Math.pow(2, field.bits) + field.value;
+  }
+  return word;
+}
+
+
+// =====================================================================================
+// PART 3: READING THE OPERANDS OF ONE INSTRUCTION
+// =====================================================================================
+
+// Work out the offset for a branch or jump.
+//   - If the operand is a number (lekana p1, p2, 8) it already IS the byte offset.
+//   - If it is a label name:   offset = (address of label) - (address of THIS instruction)
+//     e.g. nyane at address 12, done at address 28  ->  offset = 28 - 12 = 16
+function getTarget(text, thisAddress, labels, range, kind) {
+  let offset;
+  if (isNumber(text)) {
+    offset = toNumber(text);
+  } else {
+    if (!hasKey(labels, text)) {
+      const guess = closestWord(text, Object.keys(labels), 2);
+      let hint = 'Define it by writing name: before an instruction.';
+      if (guess !== null) hint = `Did you mean "${guess}"?`;
+      throw problem(`The label "${text}" is not defined anywhere in the program.`, hint);
+    }
+    offset = labels[text] - thisAddress;
+  }
+  if (offset % 2 !== 0) {
+    throw problem(`The ${kind} offset ${offset} is odd; offsets must be even.`,
+      'Use a label, or an even number of bytes.');
+  }
+  if (offset < range.min || offset > range.max) {
+    throw problem(`The ${kind} target is ${offset} bytes away, outside the reach ${range.min} to ${range.max}.`,
+      'Move the label closer, or jump via a register with khutla.');
+  }
+  return offset;
+}
+
+// Read the operands and return their values: { rd, rs1, rs2, imm } (only those that apply).
+// `ops` is the list of operand texts, e.g. ['p3', 'p1', 'p2'].
+function readOperands(mnemonic, ins, ops, thisAddress, labels) {
+  // 1. How many operands should there be?
+  let expected = 3;                                   // R-type, kopanyah, chetse, branches
+  if (ins.syntax === 'LOAD' || ins.syntax === 'STORE' || ins.syntax === 'JUMP') expected = 2;
+  if (ops.length !== expected) {
+    throw problem(`"${mnemonic}" needs ${expected} operands but you wrote ${ops.length}.`,
+      `Format: ${ins.usage}`);
+  }
+
+  // 2. Read them according to the instruction's syntax
+  if (ins.syntax === 'RRR') {                         // kopanya rd, rs1, rs2
+    return { rd: getRegister(ops[0]), rs1: getRegister(ops[1]), rs2: getRegister(ops[2]) };
+  }
+  if (ins.syntax === 'RRI') {                         // kopanyah rd, rs1, imm
+    return { rd: getRegister(ops[0]), rs1: getRegister(ops[1]), imm: getImmediate(ops[2], RANGES.I, 'immediate') };
+  }
+  if (ins.syntax === 'RRS') {                         // chetse rd, rs1, shamt
+    return { rd: getRegister(ops[0]), rs1: getRegister(ops[1]), imm: getImmediate(ops[2], RANGES.SHAMT, 'shift amount') };
+  }
+  if (ins.syntax === 'LOAD') {                        // tshela rd, imm(rs1)   and   khutla rd, imm(rs1)
+    const memory = getMemoryOperand(ops[1], RANGES.I);
+    return { rd: getRegister(ops[0]), rs1: memory.register, imm: memory.offset };
+  }
+  if (ins.syntax === 'STORE') {                       // boloka rs2, imm(rs1)
+    const memory = getMemoryOperand(ops[1], RANGES.S);
+    return { rs2: getRegister(ops[0]), rs1: memory.register, imm: memory.offset };
+  }
+  if (ins.syntax === 'BRANCH') {                      // lekana rs1, rs2, label
+    return {
+      rs1: getRegister(ops[0]),
+      rs2: getRegister(ops[1]),
+      imm: getTarget(ops[2], thisAddress, labels, RANGES.B, 'branch'),
+    };
+  }
+  if (ins.syntax === 'JUMP') {                        // tlola rd, label
+    return {
+      rd: getRegister(ops[0]),
+      imm: getTarget(ops[1], thisAddress, labels, RANGES.J, 'jump'),
+    };
+  }
+  throw new Error('Unknown syntax ' + ins.syntax);    // cannot happen unless isa.js is wrong
+}
+
+
+// =====================================================================================
+// PART 4: PASS 1 - find the labels, give each instruction an address
+//
+// Why a separate pass? Because  nyane t0, t2, done  jumps FORWARD to a label the assembler
+// has not met yet. So first we walk the whole program and write down where every label is.
+// =====================================================================================
+
+function isValidLabelName(name) {
+  const letters = 'abcdefghijklmnopqrstuvwxyz_';
+  if (name.length === 0 || !letters.includes(name[0])) return false;      // must start with a letter or _
+  const allowed = letters + '0123456789' + "'";                          // then letters, digits, _ or '
+  return allCharsIn(name, allowed);
+}
+
+// Returns { items, labels }.  items = the instructions found, each with its address.
+// Mistakes are added to the `errors` list.
+function passOne(sourceText, errors) {
+  const labels = {};          // the label table:  name -> address
+  const items = [];           // the instructions, in order
+  let address = 0;            // like a program counter: 0, 4, 8, 12 ...
+
+  const rawLines = String(sourceText).split('\n');
+
+  for (let index = 0; index < rawLines.length; index++) {
+    const lineNumber = index + 1;                     // humans count lines from 1
+    const rawLine = rawLines[index].split('\r').join('');
+    let text = cleanLine(rawLine);
+    if (text === '') continue;                        // blank or comment-only line
+
+    try {
+      // ---- Labels at the start of the line:   loop:   or   a: b: kopanya ... ----
+      while (true) {
+        const colonPos = text.indexOf(':');
+        if (colonPos === -1) break;                   // no colon: no label (any more)
+        const name = text.slice(0, colonPos);
+        if (name.includes(' ') || name.includes(',') || name.includes('(') || name.includes(')')) {
+          break;                                      // that colon is not a label marker
+        }
+        if (!isValidLabelName(name)) {
+          throw problem(`"${name}" is not a valid label name.`,
+            "Labels start with a letter or _ and contain letters, digits, _ or '.");
+        }
+        if (hasKey(labels, name)) {
+          throw problem(`The label "${name}" is defined twice.`, 'Give each label a different name.');
+        }
+        if (hasKey(INSTRUCTIONS, name) || hasKey(REGISTER_LOOKUP, name)) {
+          throw problem(`"${name}" cannot be a label because it is already an instruction or register name.`,
+            'Choose another name.');
+        }
+        labels[name] = address;                       // write it in the label table
+        text = text.slice(colonPos + 1).trim();       // continue with what comes after the label
+      }
+      if (text === '') continue;                      // the line was only a label
+
+      // ---- The instruction: the first word is the mnemonic, the rest are operands ----
+      const spacePos = text.indexOf(' ');
+      let mnemonic = text;
+      let rest = '';
+      if (spacePos !== -1) {
+        mnemonic = text.slice(0, spacePos);
+        rest = text.slice(spacePos).trim();
+      }
+      let operands = [];
+      if (rest !== '') {
+        const pieces = rest.split(',');
+        for (const piece of pieces) operands.push(piece.trim());
+      }
+      for (const operand of operands) {
+        if (operand === '') {
+          throw problem('There is an empty operand (check for a missing or extra comma).',
+            'Operands are separated by single commas.');
+        }
+      }
+
+      items.push({ lineNumber: lineNumber, source: rawLine, mnemonic: mnemonic, operands: operands, address: address });
+      address = address + 4;                          // every instruction is 4 bytes
+    } catch (e) {
+      if (!e.isLimoProblem) throw e;                  // a real bug in this program: do not hide it
+      errors.push({ line: lineNumber, message: `Line ${lineNumber}: ${e.message}`, suggestion: e.suggestion });
+    }
+  }
+
+  if (address > INSTRUCTION_MEMORY_BYTES) {
+    errors.push({
+      line: 0,
+      message: `Program is ${address} bytes; instruction memory holds ${INSTRUCTION_MEMORY_BYTES}.`,
+      suggestion: 'Shorten the program.',
+    });
+  }
+
+  return { items: items, labels: labels };
+}
+
+
+// =====================================================================================
+// PART 5: PASS 2 - encode every instruction
+// =====================================================================================
+
+function passTwo(items, labels, errors) {
+  const lines = [];
+  const words = [];
+
+  for (const item of items) {
+    try {
+      // 1. Look up the mnemonic in the instruction table (spec section 2.4)
+      let mnemonic = item.mnemonic;
+      if (!hasKey(INSTRUCTIONS, mnemonic) && hasKey(MNEMONIC_ALIASES, mnemonic)) {
+        mnemonic = MNEMONIC_ALIASES[mnemonic];        // apostrophe-free alias
+      }
+      if (!hasKey(INSTRUCTIONS, mnemonic)) {
+        const candidates = Object.keys(INSTRUCTIONS).concat(Object.keys(MNEMONIC_ALIASES));
+        const guess = closestWord(mnemonic, candidates, 2);
+        let hint = 'LIMO instructions: ' + Object.keys(INSTRUCTIONS).join(', ') + '.';
+        if (guess !== null) hint = `Did you mean "${guess}"?`;
+        throw problem(`"${item.mnemonic}" is not a LIMO instruction.`, hint);
+      }
+      const ins = INSTRUCTIONS[mnemonic];
+
+      // 2. Read the operands (registers, immediate, label offset)
+      const values = readOperands(mnemonic, ins, item.operands, item.address, labels);
+
+      // 3. Lay the values out in the format's fields, then glue them into one 32-bit word
+      const fields = buildFields(ins, values);
+      const word = fieldsToWord(fields);
+
+      // 4. Record the result (binary and hex for display, fields for colour-coding)
+      const fieldRecords = [];
+      for (const field of fields) {
+        fieldRecords.push({
+          name: field.name,
+          bits: field.bits,
+          value: field.value,
+          binary: field.value.toString(2).padStart(field.bits, '0'),
+        });
+      }
+      words.push(word);
+      lines.push({
+        line: item.lineNumber,
+        source: item.source,
+        address: item.address,
+        mnemonic: mnemonic,
+        format: ins.fmt,
+        rv32i: ins.rv32i,
+        word: word,
+        hex: '0x' + word.toString(16).toUpperCase().padStart(8, '0'),
+        binary: word.toString(2).padStart(32, '0'),
+        fields: fieldRecords,
+      });
+    } catch (e) {
+      if (!e.isLimoProblem) throw e;
+      errors.push({ line: item.lineNumber, message: `Line ${item.lineNumber}: ${e.message}`, suggestion: e.suggestion });
+    }
+  }
+
+  return { lines: lines, words: words };
+}
+
+
+// =====================================================================================
+// PART 6: assemble() - the one function the rest of the project calls
+// =====================================================================================
+
+function assemble(sourceText) {
+  const errors = [];
+
+  const first = passOne(sourceText, errors);                       // PASS 1
+  const second = passTwo(first.items, first.labels, errors);       // PASS 2
+
+  errors.sort((a, b) => a.line - b.line);                          // show mistakes in line order
+
+  const ok = errors.length === 0;
+  let words = [];
+  if (ok) words = second.words;                                    // no machine code if any error
+
+  return { ok: ok, lines: second.lines, errors: errors, labels: first.labels, words: words };
+}
+
+return { assemble };
+})();
+const EXAMPLES = {"compare_2_int":"# Program 2: compare_2_int - keeps the larger of A and B at MEM[16]\r\nkopanyah t0, noto, 25     # t0 = 25 (value A)\r\nboloka t0, 0(noto)        # MEM[0] = A\r\nkopanyah t0, noto, 17     # t0 = 17 (value B)\r\nboloka t0, 4(noto)        # MEM[4] = B\r\ntshela n0, 0(noto)        # n0 = A\r\ntshela n1, 4(noto)        # n1 = B\r\nnyane n0, n1, nka_b       # if A < B, jump to nka_b (load-use: 1 stall)\r\nkopanya n2, n0, noto      # else result = A\r\ntlola noto, qeta          # skip the B case\r\nnka_b: kopanya n2, n1, noto   # result = B\r\nqeta:  boloka n2, 16(noto)    # MEM[16] = larger value\r\nqetile: lekana noto, noto, qetile  # halt\r\n","count_even":"# Program 3: count_even - counts the even numbers in a five-element array\r\nkopanyah n0, noto, 4      # initialise the array a[0..4] = 4, 7, 10, 3, 8\r\nboloka n0, 0(noto)\r\nkopanyah n0, noto, 7\r\nboloka n0, 4(noto)\r\nkopanyah n0, noto, 10\r\nboloka n0, 8(noto)\r\nkopanyah n0, noto, 3\r\nboloka n0, 12(noto)\r\nkopanyah n0, noto, 8\r\nboloka n0, 16(noto)\r\nkopanyah t0, noto, 0      # base address = 0\r\nkopanyah t1, noto, 0      # count = 0\r\nkopanyah t2, noto, 0      # index = 0\r\nkopanyah t3, noto, 5      # array length = 5\r\nkopanyah t4, noto, 4      # element size = 4\r\nkopanyah t7, noto, 1      # mask = 1 (LIMO has no andi)\r\nloop: lekana t2, t3, done # if index == length, finish\r\nkopanyah t5, noto, 0      # offset = 0\r\nkopanyah t6, noto, 0      # counter = 0\r\noffset_loop: lekana t6, t2, check  # if counter == index, offset is ready\r\nkopanya t5, t5, t4        # offset = offset + 4\r\nkopanyah t6, t6, 1        # counter++\r\ntlola noto, offset_loop   # repeat\r\ncheck: kopanya t5, t0, t5 # address = base + offset\r\ntshela t6, 0(t5)          # load a[index]\r\nle t6, t6, t7             # t6 = a[index] AND 1\r\nhaelekane t6, noto, skip  # odd: do not count it\r\nkopanyah t1, t1, 1        # even: count++\r\nskip: kopanyah t2, t2, 1  # index++\r\ntlola noto, loop          # next element\r\ndone: \r\n","count_first_n":"# Program 1: CountFirstN - sums 1 + 2 + ... + N for N = 5\r\nkopanyah t0, noto, 5      # t0 = N = 5\r\nkopanyah t1, noto, 0      # sum = 0\r\nkopanyah t2, noto, 1      # i = 1\r\nloop:  nyane t0, t2, done # if N < i, finish (taken once)\r\nkopanya t1, t1, t2        # sum = sum + i\r\nkopanyah t2, t2, 1        # i = i + 1\r\ntlola noto, loop          # jump back to loop (taken 5 times)\r\ndone:  lekana noto, noto, done  # halt\r\n"};
+
+const $ = (id) => document.getElementById(id);
+
+// make an element with a class and some text
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+// which colour class a field gets
+function kind(name) {
+  if (name === 'opcode') return 'opcode';
+  if (name === 'rd') return 'rd';
+  if (name === 'funct3') return 'f3';
+  if (name === 'funct7') return 'f7';
+  if (name === 'rs1') return 'rs1';
+  if (name === 'rs2') return 'rs2';
+  return 'imm';
+}
+
+function hex4(n) { return '0x' + n.toString(16).toUpperCase().padStart(3, '0'); }
+
+function render(result) {
+  // status (text and symbol, never colour alone)
+  const status = $('status');
+  if (result.ok) {
+    status.textContent = '✓ ' + result.lines.length + ' instructions assembled';
+    status.className = 'ok';
+  } else {
+    status.textContent = '✗ ' + result.errors.length + ' error' + (result.errors.length === 1 ? '' : 's');
+    status.className = 'bad';
+  }
+
+  // errors
+  const errors = $('errors');
+  errors.textContent = '';
+  if (result.errors.length === 0) errors.appendChild(el('li', 'hint', 'No errors.'));
+  for (const e of result.errors) {
+    const li = el('li');
+    li.appendChild(el('strong', 'bad', e.message));
+    if (e.suggestion) li.appendChild(el('div', 'hint', e.suggestion));
+    errors.appendChild(li);
+  }
+
+  // machine code table
+  const body = $('out');
+  body.textContent = '';
+  for (const line of result.lines) {
+    const row = el('tr');
+    row.appendChild(el('td', 'mono', hex4(line.address)));
+    row.appendChild(el('td', 'mono', line.source.trim()));
+    row.appendChild(el('td', 'mono', line.rv32i));
+    row.appendChild(el('td', 'mono', line.hex));
+    const cell = el('td');
+    const box = el('div', 'fields');
+    for (const f of line.fields) {
+      const part = el('span', 'f ' + kind(f.name), f.binary);
+      part.appendChild(el('small', '', f.name));
+      part.title = f.name + ' = ' + f.value;
+      box.appendChild(part);
+    }
+    cell.appendChild(box);
+    row.appendChild(cell);
+    body.appendChild(row);
+  }
+
+  // labels
+  const names = Object.keys(result.labels);
+  $('labels').textContent = names.length === 0 ? 'No labels.'
+    : names.map((n) => n + ' = ' + hex4(result.labels[n])).join('    ');
+}
+
+function run() { render(LIMO.assemble($('src').value)); }
+
+// set up the example list
+for (const name of Object.keys(EXAMPLES)) {
+  const option = el('option', '', name);
+  option.value = name;
+  $('ex').appendChild(option);
+}
+$('ex').addEventListener('change', () => { $('src').value = EXAMPLES[$('ex').value]; run(); });
+$('go').addEventListener('click', run);
+$('src').addEventListener('input', run);
+
+$('src').value = EXAMPLES[$('ex').value];
+run();
+</script>
+</body>
+</html>

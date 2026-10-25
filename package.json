@@ -1,0 +1,12 @@
+{
+  "name": "limo-the-park",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "LIMO: a Sesotho-mnemonic RV32I-derived ISA, assembler, and browser pipeline simulator (CS3520, NUL)",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test",
+    "build": "node build.js"
+  }
+}
