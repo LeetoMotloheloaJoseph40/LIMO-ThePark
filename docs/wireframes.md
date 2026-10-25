@@ -24,7 +24,7 @@ Status: M2 layout contract. Thabo (interface lead) owns the UI skeleton; this do
 +--------------------------------------------------------------+
 ~~~
 Components: `Toolbar`, `ExamplePicker`, `SourceEditor`, `MachineCodeTable`, `FieldLegend`, `StatusBar`.
-Inputs: `assembly = { ok, errors:[{line,message}], lines:[{lineNo,addr,source,word,hex,bin,fields}], labels, imem }`.
+Inputs: `assembly = { ok, errors:[{line,message,suggestion}], lines:[{line,source,address,mnemonic,format,rv32i,word,hex,binary,fields}], labels, words }`.
 Outputs: `onAssemble(sourceText)`, `onLoadExample(name)`; on success the program is loaded into `state.imem` and the machine is reset.
 Keyboard: Tab order is toolbar, editor, table, status; Ctrl+Enter assembles; errors are announced in the status bar (aria-live).
 Colour rule: each field in the table has a text label under it (opcode, rd, rs1, rs2, imm), not only a colour.
