@@ -1,0 +1,4 @@
+program: tests/hazards/programs/khutla_case.limo
+expect: <undecided>
+status: xfail
+note: khutla behaviour unresolved — see docs/hazards.md §5
