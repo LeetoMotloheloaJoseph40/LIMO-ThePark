@@ -1,0 +1,5 @@
+program: examples/compare_2_int.limo
+expect: REG <final reg> <value>
+        CYCLES <n>
+status: skip
+note: end-to-end run of provided example — expectations TBD from .limo source

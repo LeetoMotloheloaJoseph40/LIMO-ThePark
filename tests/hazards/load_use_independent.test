@@ -1,0 +1,4 @@
+program: tests/hazards/programs/load_independent.limo
+expect: CYCLES 5
+status: skip
+note: load followed by unrelated op — must NOT stall
