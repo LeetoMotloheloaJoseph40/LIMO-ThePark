@@ -5,7 +5,8 @@ five-stage pipeline simulator. CS3520 Computer Organisation and Architecture,
 National University of Lesotho, AY 2026/2027.
 
 **Live simulator:** https://leetomotloheloajoseph40.github.io/LIMO-ThePark/
-**Demo video:** (add unlisted YouTube link for M5)
+
+**Demo video:** (coming soon) 
 
 ## Team and roles
 
