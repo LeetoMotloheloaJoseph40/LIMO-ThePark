@@ -13,12 +13,12 @@ Roles rotate weekly. Current week: **M?**
 
 | Member | GitHub | Role this week |
 |---|---|---|
-| L. Motloheloa | @LeetoMotloheloaJoseph40 | |
-| T. Liphoto | @thaboliphoto | |
-| R. Moseme | @Moseme | |
-| K. Khobotle | @KhobotleHelen | |
-| K. Ramili | @amira2K5 | |
-| S. Senekane | @Charity6-dev | |
+| L. Motloheloa | @LeetoMotloheloaJoseph40 | Team Leader, Pipeline and Implementation Lead |
+| T. Liphoto | @thaboliphoto | Interface Lead |
+| R. Moseme | @Moseme | ISA Architect |
+| K. Ramaili | @amira2K5 | Design and Test Lead |
+| K. Khobotle | @KhobotleHelen | Assembler Lead |
+| S. Senekane | @Charity6-dev | Scrum and Release Lead |
 
 ## Repository layout
 
@@ -34,7 +34,7 @@ Roles rotate weekly. Current week: **M?**
 
 ```bash
 npm test                      # unit tests (Node 20+)
-npx serve src                 # or open src/index.html in a browser
+npx serve src                 # / open src/index.html in a browser
 ```
 
 ## How we work
