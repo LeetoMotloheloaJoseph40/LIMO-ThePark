@@ -1,0 +1,5 @@
+program: tests/hazards/programs/control_flush.limo
+expect: REG r1 1
+        CYCLES 7
+status: skip
+note: taken branch — IF/ID flush, 2 bubbles

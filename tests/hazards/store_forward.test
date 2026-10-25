@@ -1,0 +1,4 @@
+program: tests/hazards/programs/store_forward.limo
+expect: MEM 0 7
+status: skip
+note: producer -> sw same address — store-data forwarding
