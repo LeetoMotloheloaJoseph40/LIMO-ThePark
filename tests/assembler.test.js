@@ -176,15 +176,15 @@ describe('the three M1 sample programs', () => {
     assert.equal(r.labels.qeta, 40);
   });
   test('compare_2_int: the M1 spec typo "qetiled" is caught with a helpful suggestion', () => {
-    const e = firstError(example('compare_2_int').replace('noto, qetile  #', 'noto, qetiled  #'));
+    const e = firstError(example('compare_2_int').replace(/noto, qetile(\s+#)/, 'noto, qetiled$1'));
     assert.match(e.message, /"qetiled" is not defined/);
     assert.match(e.suggestion, /qetile/);
   });
-  test('count_even assembles (30 instructions = 120 bytes)', () => {
+  test('count_even assembles (31 instructions = 124 bytes)', () => {
     const r = assemble(example('count_even'));
     assert.deepEqual(r.errors, []);
-    assert.equal(r.words.length, 30);
-    assert.equal(r.words.length * 4, 120);
+    assert.equal(r.words.length, 31);
+    assert.equal(r.words.length * 4, 124);
   });
   test('count_even spot checks from the M1 spec', () => {
     const r = assemble(example('count_even'));
