@@ -326,9 +326,9 @@ function getTarget(text, thisAddress, labels, range, kind) {
     }
     offset = labels[text] - thisAddress;
   }
-  if (offset % 2 !== 0) {
-    throw problem(`The ${kind} offset ${offset} is odd; offsets must be even.`,
-      'Use a label, or an even number of bytes.');
+  if (offset % 4 !== 0) {
+    throw problem(`The ${kind} offset ${offset} is not a multiple of 4; targets must be word-aligned.`,
+      'Use a label, or an offset that is a multiple of 4 bytes.');
   }
   if (offset < range.min || offset > range.max) {
     throw problem(`The ${kind} target is ${offset} bytes away, outside the reach ${range.min} to ${range.max}.`,
