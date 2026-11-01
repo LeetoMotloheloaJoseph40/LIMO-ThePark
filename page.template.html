@@ -384,9 +384,13 @@ function renderCore() {
   }
 
   const status = $('core-status');
-  status.className = `core-message ${loaded ? 'ok' : ''}`;
+  const coreError = coreState?.error;
+  const errorMessage = typeof coreError === 'string' ? coreError : coreError?.message;
+  const errorLocation = Number.isFinite(coreError?.pc) ? ` at ${u32Hex(coreError.pc)}` : '';
+  status.className = `core-message ${coreError ? 'error' : (loaded ? 'ok' : '')}`;
   status.textContent = !loaded ? 'Assemble a valid program to load the core state.'
-    : (coreState.halted ? 'Program halted.' : 'UI is reading the core state; use Step or Run to advance it.');
+    : (coreError ? `Run stopped${errorLocation}: ${errorMessage}`
+      : (coreState.halted ? 'Program halted.' : 'UI is reading the core state; use Step or Run to advance it.'));
   renderPipelineRegisters();
   renderTrace();
 }
