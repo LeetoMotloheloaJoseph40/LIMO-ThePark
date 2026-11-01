@@ -10,7 +10,9 @@ function inline(code) {
   return code.replace(/import\s*\{[^}]*\}\s*from\s*'\.\/isa\.js';/, '').replace(/^export /gm, '');
 }
 
-const assemblerCode = inline(read('./src/isa.js')) + '\n' + inline(read('./src/assembler.js'));
+// Order matters: isa.js first (the tables), then the files that use it.
+const assemblerCode = ['isa', 'assembler', 'decode', 'program']
+  .map((name) => inline(read('./src/' + name + '.js'))).join('\n');
 
 const examples = {};
 for (const file of readdirSync(new URL('./examples/', import.meta.url)).sort()) {
@@ -18,7 +20,7 @@ for (const file of readdirSync(new URL('./examples/', import.meta.url)).sort()) 
 }
 
 let html = read('./page.template.html');
-html = html.replace('/*ASSEMBLER*/', () => `const LIMO = (function () {\n${assemblerCode}\nreturn { assemble };\n})();`);
+html = html.replace('/*ASSEMBLER*/', () => `const LIMO = (function () {\n${assemblerCode}\nreturn { assemble, decode, disassemble, registerName, buildInstructionMemory };\n})();`);
 html = html.replace('/*EXAMPLES*/', () => 'const EXAMPLES = ' + JSON.stringify(examples) + ';');
 writeFileSync(new URL('./src/index.html', import.meta.url), html);
 console.log('src/index.html written (' + html.length + ' bytes)');

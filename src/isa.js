@@ -48,6 +48,8 @@ REGISTER_LOOKUP.noto = 0;    REGISTER_LOOKUP.zero = 0;   // p0  hard-wired zero
 REGISTER_LOOKUP.hae = 1;     REGISTER_LOOKUP.ra = 1;     // p1  return address
 REGISTER_LOOKUP.lesupa = 2;  REGISTER_LOOKUP.sp = 2;     // p2  stack pointer
 
+// p3-p4 temporaries (new in spec v1.1; they were "reserved" in M1)
+REGISTER_LOOKUP.n7 = 3;   REGISTER_LOOKUP.n8 = 4;
 // p5-p7 temporaries
 REGISTER_LOOKUP.n0 = 5;   REGISTER_LOOKUP.n1 = 6;   REGISTER_LOOKUP.n2 = 7;
 // p8-p9 saved
@@ -69,8 +71,8 @@ export const RANGES = {
   I:     { min: -2048,    max: 2047 },      // kopanyah, tshela, khutla
   S:     { min: -2048,    max: 2047 },      // boloka
   SHAMT: { min: 0,        max: 31 },        // chetse
-  B:     { min: -4096,    max: 4094 },      // branches, in bytes (even)
-  J:     { min: -1048576, max: 1048574 },   // tlola, in bytes (even)
+  B:     { min: -4096,    max: 4094 },      // branches, encodable range in bytes; the assembler also requires a multiple of 4
+  J:     { min: -1048576, max: 1048574 },   // tlola, encodable range in bytes; the assembler also requires a multiple of 4
 };
 
 export const INSTRUCTION_MEMORY_BYTES = 4096;   // 0x000 - 0xFFF  (M1 section 2.1)
