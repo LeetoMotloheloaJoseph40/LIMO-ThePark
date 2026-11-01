@@ -43,6 +43,30 @@ code,.mono{font-family:ui-monospace,Consolas,Menlo,monospace}
 .stages{display:grid;grid-template-columns:repeat(5,minmax(70px,1fr));gap:8px}
 .stage{border:1px solid var(--line);border-radius:6px;padding:10px;text-align:center;background:var(--bg)}
 .stage strong{display:block}.stage small{color:var(--muted)}
+.stage.active{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.stage .stage-value{display:block;margin-top:6px;font:12px/1.35 ui-monospace,Consolas,Menlo,monospace;overflow-wrap:anywhere}
+.sim-controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0 4px}
+.sim-controls button:disabled{opacity:.5;cursor:not-allowed}
+.sim-meta{font:13px/1.5 ui-monospace,Consolas,Menlo,monospace;color:var(--muted)}
+.state-scroll{max-height:280px;overflow:auto;border:1px solid var(--line);border-radius:6px}
+.state-table{width:100%;min-width:0;font-size:12px}
+.state-table th,.state-table td{padding:4px 6px;white-space:nowrap}
+.state-table .changed{font-weight:700}
+.state-table .changed .changed-mark{color:var(--accent);font-weight:800}
+.pipeline-registers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.pipeline-register{border:1px solid var(--line);border-radius:6px;padding:8px;min-width:0}
+.pipeline-register h3{font-size:.85rem;margin:0 0 4px}
+.pipeline-register pre{white-space:pre-wrap;overflow-wrap:anywhere;margin:0;color:var(--muted);font:11px/1.4 ui-monospace,Consolas,Menlo,monospace}
+.core-message{min-height:1.5em;margin:6px 0;color:var(--muted)}
+.core-message.error{color:var(--err)}
+.core-message.ok{color:var(--ok)}
+.register-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px 8px}
+.register-item{display:flex;justify-content:space-between;gap:6px;border-bottom:1px solid var(--line);padding:3px 0;font:11px/1.4 ui-monospace,Consolas,Menlo,monospace}
+.register-item.changed{font-weight:700}
+.register-name{color:var(--muted);white-space:nowrap}
+.register-value{white-space:nowrap;text-align:right}
+.register-value .changed-mark{color:var(--accent)}
+.memory-summary{font-size:12px;color:var(--muted);margin:0 0 6px}
 .section{margin:16px 0}
 @media(max-width:800px){.workspace{grid-template-columns:1fr}.editor textarea{min-height:220px}}
 @media(max-width:520px){main{padding:12px}.state-grid{grid-template-columns:1fr}.stages{grid-template-columns:repeat(2,1fr)}.stages .stage:last-child{grid-column:1/-1}}
@@ -56,13 +80,20 @@ code,.mono{font-family:ui-monospace,Consolas,Menlo,monospace}
 <section class="section card" aria-labelledby="pipeline-heading">
   <h2 id="pipeline-heading" class="panel-title">Five-stage pipeline</h2>
   <div class="stages" aria-label="Pipeline stage layout">
-    <div class="stage"><strong>IF</strong><small>Instruction Fetch</small></div>
-    <div class="stage"><strong>ID</strong><small>Decode</small></div>
-    <div class="stage"><strong>EX</strong><small>Execute</small></div>
-    <div class="stage"><strong>MEM</strong><small>Memory</small></div>
-    <div class="stage"><strong>WB</strong><small>Write Back</small></div>
+    <div class="stage" id="stage-if"><strong>IF</strong><small>Instruction Fetch</small><span class="stage-value" id="stage-if-value">Bubble</span></div>
+    <div class="stage" id="stage-id"><strong>ID</strong><small>Decode</small><span class="stage-value" id="stage-id-value">Bubble</span></div>
+    <div class="stage" id="stage-ex"><strong>EX</strong><small>Execute</small><span class="stage-value" id="stage-ex-value">Bubble</span></div>
+    <div class="stage" id="stage-mem"><strong>MEM</strong><small>Memory</small><span class="stage-value" id="stage-mem-value">Bubble</span></div>
+    <div class="stage" id="stage-wb"><strong>WB</strong><small>Write Back</small><span class="stage-value" id="stage-wb-value">Bubble</span></div>
   </div>
-  <p class="hint">Pipeline execution controls and live values will connect to the processor core.</p>
+  <div class="sim-controls" aria-label="Pipeline controls">
+    <button id="step" type="button" disabled>Step</button>
+    <button id="run" type="button" disabled>Run</button>
+    <button id="reset" type="button" disabled>Reset</button>
+    <span class="sim-meta" id="core-cycle">Cycle 0</span>
+    <span class="sim-meta" id="core-pc">PC 0x00000000</span>
+  </div>
+  <p id="core-status" class="core-message" role="status" aria-live="polite">Assemble a program to load the pipeline state.</p>
 </section>
 
 <div class="workspace">
@@ -99,11 +130,11 @@ code,.mono{font-family:ui-monospace,Consolas,Menlo,monospace}
 
 <aside class="stack" aria-label="Machine state and narration">
   <div class="state-grid">
-    <section class="card" aria-labelledby="register-heading"><h2 id="register-heading" class="panel-title">Registers</h2><div class="placeholder">Register values will appear here when the pipeline core is connected.</div></section>
-    <section class="card" aria-labelledby="memory-heading"><h2 id="memory-heading" class="panel-title">Memory</h2><div class="placeholder">Data memory addresses and values will appear here.</div></section>
+    <section class="card" aria-labelledby="register-heading"><h2 id="register-heading" class="panel-title">Registers</h2><div id="registers" class="register-grid" aria-live="polite"></div></section>
+    <section class="card" aria-labelledby="memory-heading"><h2 id="memory-heading" class="panel-title">Data memory</h2><p class="memory-summary">Byte addresses 0x000-0xFFC; values are words.</p><div class="state-scroll"><table class="state-table"><thead><tr><th>Address</th><th>Signed</th><th>Hex</th></tr></thead><tbody id="memory"></tbody></table></div></section>
   </div>
-  <section class="card" aria-labelledby="narration-heading"><h2 id="narration-heading" class="panel-title">Cycle narration</h2><div class="placeholder">Stage-by-stage explanations will appear here as the program runs.</div></section>
-  <section class="card" aria-labelledby="register-model-heading"><h2 id="register-model-heading" class="panel-title">Pipeline registers</h2><div class="placeholder">IF/ID · ID/EX · EX/MEM · MEM/WB live contents will appear here.</div></section>
+  <section class="card" aria-labelledby="narration-heading"><h2 id="narration-heading" class="panel-title">Cycle trace</h2><ul id="narration" aria-live="polite"><li class="hint">Step the core to show its per-cycle trace.</li></ul></section>
+  <section class="card" aria-labelledby="register-model-heading"><h2 id="register-model-heading" class="panel-title">Pipeline registers</h2><div id="pipeline-registers" class="pipeline-registers" aria-live="polite"></div></section>
 </aside>
 </div>
 </main>
@@ -1005,6 +1036,369 @@ function buildInstructionMemory(assembly) {
 return { assemble, decode, disassemble, registerName, buildInstructionMemory };
 })();
 const EXAMPLES = {"CountFirstN":"# CountFirstN - sums 1 + 2 + ... + N for N = 5 (M1 sample program 1)\r\n# Expected final state: t0 = 5, t1 = 15, t2 = 6\r\n# N = 25 instructions, 0 stalls, 12 flushed (6 taken transfers x 2) -> 41 cycles\r\nkopanyah t0, noto, 5      # t0 = N = 5\r\nkopanyah t1, noto, 0      # sum = 0\r\nkopanyah t2, noto, 1      # i = 1\r\nloop: nyane t0, t2, done  # if N < i, finish (taken once)\r\nkopanya t1, t1, t2        # sum = sum + i\r\nkopanyah t2, t2, 1        # i = i + 1\r\ntlola noto, loop          # jump back to loop (taken 5 times)\r\ndone: lekana noto, noto, done   # halt (branch to itself)\r\n","alu_mix":"# alu_mix - one use of every arithmetic and logic instruction, no hazards (new in ISA v1.1)\r\n# Covers tlosa, kapa and chetse, which no M1 sample program used.\r\n# Expected final state: t0 = 12, t1 = 10, t2 = 2, t3 = 14, t4 = 8, t5 = 96,\r\n#   t6 = 0xFFFFFFFE (-2 as a signed number)\r\n# N = 8, 0 stalls, 0 flushed -> 12 cycles\r\nkopanyah t0, noto, 12     # t0 = 12 (0b1100)\r\nkopanyah t1, noto, 10     # t1 = 10 (0b1010)\r\ntlosa t2, t0, t1          # t2 = 12 - 10 = 2 (RAW on t1: forwarded)\r\nkapa t3, t0, t1           # t3 = 12 OR 10 = 14\r\nle t4, t0, t1             # t4 = 12 AND 10 = 8\r\nchetse t5, t0, 3          # t5 = 12 << 3 = 96\r\ntlosa t6, t1, t0          # t6 = 10 - 12 = -2\r\nqeta: lekana noto, noto, qeta   # halt\r\n","compare_2_int":"# compare_2_int - stores A and B, loads them back, keeps the larger at MEM[16]\r\n# (M1 sample program 2; v1.1 fixes the halt label: qetile branched to \"qetiled\")\r\n#\r\n# As written (A = 25, B = 17):\r\n#   MEM[0] = 25, MEM[4] = 17, MEM[16] = 25; t0 = 17, n0 = 25, n1 = 17, n2 = 25\r\n#   N = 11, 1 stall, 2 flushed -> 18 cycles\r\n# Variant: change line \"kopanyah t0, noto, 17\" to 40 (nyane is then taken):\r\n#   MEM[4] = MEM[16] = 40; t0 = n1 = n2 = 40; n0 = 25\r\n#   N = 10, 1 stall, 2 flushed -> 17 cycles\r\nkopanyah t0, noto, 25     # t0 = 25 (value A)\r\nboloka t0, 0(noto)        # MEM[0] = A (RAW on t0: forwarded)\r\nkopanyah t0, noto, 17     # t0 = 17 (value B)\r\nboloka t0, 4(noto)        # MEM[4] = B\r\ntshela n0, 0(noto)        # n0 = A\r\ntshela n1, 4(noto)        # n1 = B\r\nnyane n0, n1, nka_b       # if A < B, go to nka_b (load-use: 1 stall)\r\nkopanya n2, n0, noto      # else result = A (a register copy)\r\ntlola noto, qeta          # skip the B case (taken)\r\nnka_b: kopanya n2, n1, noto     # result = B\r\nqeta: boloka n2, 16(noto)       # MEM[16] = larger value\r\nqetile: lekana noto, noto, qetile   # halt\r\n","count_even":"# count_even - counts the even numbers in a five-element array (M1 sample program 3)\r\n# No multiply, so a[index]'s address is built by repeated addition; no andi, so the\r\n# parity mask lives in t7.\r\n# Expected final state: MEM[0..16] = 4, 7, 10, 3, 8; t0 = 0, t1 = 3 (the count),\r\n#   t2 = 5, t3 = 5, t4 = 4, t5 = 16, t6 = 0, t7 = 1, n0 = 8\r\n# N = 111, 5 stalls (one per element), 46 flushed (23 taken transfers x 2) -> 166 cycles\r\nkopanyah n0, noto, 4      # initialise the array a[0..4] = 4, 7, 10, 3, 8\r\nboloka n0, 0(noto)        # a[0] = 4\r\nkopanyah n0, noto, 7\r\nboloka n0, 4(noto)        # a[1] = 7\r\nkopanyah n0, noto, 10\r\nboloka n0, 8(noto)        # a[2] = 10\r\nkopanyah n0, noto, 3\r\nboloka n0, 12(noto)       # a[3] = 3\r\nkopanyah n0, noto, 8\r\nboloka n0, 16(noto)       # a[4] = 8\r\nkopanyah t0, noto, 0      # base address = 0\r\nkopanyah t1, noto, 0      # count = 0\r\nkopanyah t2, noto, 0      # index = 0\r\nkopanyah t3, noto, 5      # array length = 5\r\nkopanyah t4, noto, 4      # element size = 4\r\nkopanyah t7, noto, 1      # mask = 1 (LIMO has no andi)\r\nloop: lekana t2, t3, done # if index == length, finish\r\nkopanyah t5, noto, 0      # offset = 0\r\nkopanyah t6, noto, 0      # counter = 0\r\noffset_loop: lekana t6, t2, check   # if counter == index, offset is ready\r\nkopanya t5, t5, t4        # offset = offset + 4 (no multiply)\r\nkopanyah t6, t6, 1        # counter++\r\ntlola noto, offset_loop   # repeat\r\ncheck: kopanya t5, t0, t5 # address = base + offset\r\ntshela t6, 0(t5)          # load a[index] (RAW on t5: forwarded)\r\nle t6, t6, t7             # t6 = a[index] AND 1 (load-use: 1 stall)\r\nhaelekane t6, noto, skip  # odd: do not count it (RAW on t6: forwarded)\r\nkopanyah t1, t1, 1        # even: count++\r\nskip: kopanyah t2, t2, 1  # index++\r\ntlola noto, loop          # next element\r\ndone: lekana noto, noto, done   # halt\r\n","count_first_n":"# Program 1: CountFirstN - sums 1 + 2 + ... + N for N = 5\r\nkopanyah t0, noto, 5      # t0 = N = 5\r\nkopanyah t1, noto, 0      # sum = 0\r\nkopanyah t2, noto, 1      # i = 1\r\nloop:  nyane t0, t2, done # if N < i, finish (taken once)\r\nkopanya t1, t1, t2        # sum = sum + i\r\nkopanyah t2, t2, 1        # i = i + 1\r\ntlola noto, loop          # jump back to loop (taken 5 times)\r\ndone:  lekana noto, noto, done  # halt\r\n","habeli_call":"# habeli_call - calls a procedure that doubles its argument (new in ISA v1.1)\r\n# Exercises tlola with a link register (hae = ra) and khutla (return), which no M1\r\n# sample program used. \"habeli\" = twice.\r\n# Expected final state: t0 = 21, t1 = 42, hae (p1) = 8, MEM[0] = 42\r\n# N = 6, 0 stalls, 4 flushed (tlola and khutla each taken) -> 14 cycles\r\nkopanyah t0, noto, 21     # argument = 21\r\ntlola hae, habeli         # call: hae = address of the next instruction (8)\r\nboloka t1, 0(noto)        # MEM[0] = result\r\nqeta: lekana noto, noto, qeta   # halt\r\nhabeli: kopanya t1, t0, t0      # t1 = 2 * t0\r\nkhutla noto, 0(hae)       # return to the address in hae\r\n"};
+const PIPELINE = (function () {
+// Five-stage, hazard-free LIMO pipeline core.
+// Each stage reads the old state. step() returns a new state and never mutates its input.
+// Forwarding, load-use stalls and hazard statistics are intentionally left to M4.
+
+const WORDS = 1024;
+const DATA_TOP = WORDS - 1;
+
+const bubbleCtrl = () => ({
+  regWrite: false, aluSrc: false, aluOp: 'ADD', memRead: false,
+  memWrite: false, wbSel: 'ALU', branch: false, jump: false, jalr: false,
+  branchKind: null,
+});
+
+const bubbleIFID = () => ({ valid: false, pc: 0, instr: 0, pcPlus4: 0 });
+const bubbleIDEX = () => ({
+  valid: false, pc: 0, instr: 0, pcPlus4: 0, rs1: 0, rs2: 0, rd: 0,
+  rs1Val: 0, rs2Val: 0, imm: 0, usesRs1: false, usesRs2: false, ctrl: bubbleCtrl(),
+});
+const bubbleEXMEM = () => ({
+  valid: false, pc: 0, instr: 0, pcPlus4: 0, rd: 0, aluResult: 0,
+  storeData: 0, halt: false, ctrl: bubbleCtrl(),
+});
+const bubbleMEMWB = () => ({
+  valid: false, pc: 0, instr: 0, pcPlus4: 0, rd: 0, aluResult: 0,
+  memData: 0, halt: false, ctrl: bubbleCtrl(),
+});
+
+function freshRegisters() {
+  const regs = new Int32Array(32);
+  regs[2] = 0x1000; // lesupa/sp resets one word above data memory.
+  return regs;
+}
+
+function asWords(memory, fallbackLength = WORDS) {
+  if (memory instanceof Uint32Array) return memory.slice();
+  if (memory === undefined) return new Uint32Array(fallbackLength);
+  return Uint32Array.from(memory);
+}
+
+function createState({ imem, dmem } = {}) {
+  const instructionMemory = asWords(imem);
+  const dataMemory = asWords(dmem, WORDS);
+  if (instructionMemory.length !== WORDS || dataMemory.length !== WORDS) {
+    throw new RangeError('Instruction and data memory must each contain 1024 words (4 KiB).');
+  }
+  return {
+    cycle: 0, pc: 0, halted: false, haltPending: false, error: null,
+    regs: freshRegisters(), imem: instructionMemory, dmem: dataMemory,
+    ifid: bubbleIFID(), idex: bubbleIDEX(), exmem: bubbleEXMEM(), memwb: bubbleMEMWB(),
+    trace: null,
+  };
+}
+
+// Reset architectural state and pipeline registers while keeping the loaded program.
+function reset(state) {
+  return createState({ imem: state.imem });
+}
+
+const signExtend = (value, bits) => (value << (32 - bits)) >> (32 - bits);
+const u32 = (value) => value >>> 0;
+const hex32 = (value) => '0x' + u32(value).toString(16).toUpperCase().padStart(8, '0');
+
+function decode(instr, pc, regs) {
+  const opcode = instr & 0x7f;
+  const rd = (instr >>> 7) & 0x1f;
+  const funct3 = (instr >>> 12) & 7;
+  const rs1 = (instr >>> 15) & 0x1f;
+  const rs2 = (instr >>> 20) & 0x1f;
+  const funct7 = (instr >>> 25) & 0x7f;
+  let mnemonic;
+  let imm = 0;
+  let usesRs1 = false;
+  let usesRs2 = false;
+  const ctrl = bubbleCtrl();
+
+  if (opcode === 0x33) {
+    usesRs1 = true;
+    usesRs2 = true;
+    ctrl.regWrite = true;
+    if (funct3 === 0 && funct7 === 0) { mnemonic = 'kopanya'; ctrl.aluOp = 'ADD'; }
+    else if (funct3 === 0 && funct7 === 0x20) { mnemonic = 'tlosa'; ctrl.aluOp = 'SUB'; }
+    else if (funct3 === 7 && funct7 === 0) { mnemonic = 'le'; ctrl.aluOp = 'AND'; }
+    else if (funct3 === 6 && funct7 === 0) { mnemonic = 'kapa'; ctrl.aluOp = 'OR'; }
+  } else if (opcode === 0x13) {
+    usesRs1 = true;
+    ctrl.aluSrc = true;
+    ctrl.regWrite = true;
+    if (funct3 === 0) { mnemonic = 'kopanyah'; imm = signExtend(instr >>> 20, 12); ctrl.aluOp = 'ADD'; }
+    else if (funct3 === 1 && funct7 === 0) { mnemonic = 'chetse'; imm = rs2; ctrl.aluOp = 'SLL'; }
+  } else if (opcode === 0x03 && funct3 === 2) {
+    mnemonic = 'tshela';
+    usesRs1 = true;
+    imm = signExtend(instr >>> 20, 12);
+    ctrl.aluSrc = true; ctrl.aluOp = 'ADD'; ctrl.memRead = true;
+    ctrl.regWrite = true; ctrl.wbSel = 'MEM';
+  } else if (opcode === 0x23 && funct3 === 2) {
+    mnemonic = 'boloka';
+    usesRs1 = true; usesRs2 = true;
+    imm = signExtend(((instr >>> 25) << 5) | ((instr >>> 7) & 0x1f), 12);
+    ctrl.aluSrc = true; ctrl.aluOp = 'ADD'; ctrl.memWrite = true;
+  } else if (opcode === 0x63 && [0, 1, 4].includes(funct3)) {
+    mnemonic = funct3 === 0 ? 'lekana' : funct3 === 1 ? 'haelekane' : 'nyane';
+    usesRs1 = true; usesRs2 = true;
+    imm = signExtend(
+      (((instr >>> 31) & 1) << 12) |
+      (((instr >>> 7) & 1) << 11) |
+      (((instr >>> 25) & 0x3f) << 5) |
+      (((instr >>> 8) & 0xf) << 1), 13,
+    );
+    ctrl.aluOp = mnemonic === 'lekana' ? 'EQ' : mnemonic === 'haelekane' ? 'NE' : 'LT';
+    ctrl.branch = true; ctrl.branchKind = mnemonic;
+  } else if (opcode === 0x6f) {
+    mnemonic = 'tlola';
+    imm = signExtend(
+      (((instr >>> 31) & 1) << 20) |
+      (((instr >>> 21) & 0x3ff) << 1) |
+      (((instr >>> 20) & 1) << 11) |
+      (((instr >>> 12) & 0xff) << 12), 21,
+    );
+    ctrl.aluSrc = null; ctrl.aluOp = null;
+    ctrl.jump = true; ctrl.regWrite = true; ctrl.wbSel = 'PC4';
+  } else if (opcode === 0x67 && funct3 === 0) {
+    mnemonic = 'khutla';
+    usesRs1 = true;
+    imm = signExtend(instr >>> 20, 12);
+    ctrl.aluSrc = true; ctrl.aluOp = 'ADD';
+    ctrl.jalr = true; ctrl.regWrite = true; ctrl.wbSel = 'PC4';
+  }
+
+  if (!mnemonic) {
+    throw new Error(`Invalid LIMO instruction ${hex32(instr)} at PC ${hex32(pc)}.`);
+  }
+  return {
+    mnemonic, rd, rs1, rs2, imm, usesRs1, usesRs2, ctrl,
+    rs1Val: rs1 === 0 ? 0 : regs[rs1],
+    rs2Val: rs2 === 0 ? 0 : regs[rs2],
+  };
+}
+
+function branchTaken(kind, a, b) {
+  if (kind === 'lekana') return a === b;
+  if (kind === 'haelekane') return a !== b;
+  return a < b; // nyane is a signed comparison.
+}
+
+function execute(idex) {
+  if (!idex.valid) return { result: 0, target: null, taken: false, halt: false, aluA: 0, aluB: 0 };
+  const { ctrl } = idex;
+  const aluA = idex.rs1Val | 0;
+  const aluB = ctrl.aluSrc ? idex.imm | 0 : idex.rs2Val | 0;
+  let result = 0;
+  if (ctrl.aluOp === 'ADD') result = (aluA + aluB) | 0;
+  else if (ctrl.aluOp === 'SUB') result = (aluA - aluB) | 0;
+  else if (ctrl.aluOp === 'AND') result = aluA & aluB;
+  else if (ctrl.aluOp === 'OR') result = aluA | aluB;
+  else if (ctrl.aluOp === 'SLL') result = aluA << (idex.imm & 31);
+  else if (ctrl.aluOp === 'EQ') result = aluA === aluB ? 1 : 0;
+  else if (ctrl.aluOp === 'NE') result = aluA !== aluB ? 1 : 0;
+  else if (ctrl.aluOp === 'LT') result = aluA < aluB ? 1 : 0;
+
+  let taken = false;
+  let target = null;
+  if (ctrl.branch) {
+    taken = branchTaken(ctrl.branchKind, aluA, idex.rs2Val | 0);
+    if (taken) target = (idex.pc + idex.imm) >>> 0;
+  } else if (ctrl.jump) target = (idex.pc + idex.imm) >>> 0;
+  else if (ctrl.jalr) target = (((aluA + idex.imm) >>> 0) & 0xfffffffe) >>> 0;
+
+  const halt = ctrl.branch && taken && target === idex.pc;
+  return { result: result | 0, target, taken, halt, aluA, aluB };
+}
+
+function fault(state, pc, message, trace, committed = {}) {
+  return {
+    ...state, ...committed, cycle: state.cycle + 1, halted: true, haltPending: false,
+    error: { pc: u32(pc), message }, trace: { ...trace, error: message },
+  };
+}
+
+function stageSummary(slot) {
+  return slot.valid ? { valid: true, pc: slot.pc, instr: slot.instr } : { valid: false, bubble: true };
+}
+
+function step(state) {
+  if (state.halted) return state;
+
+  const cycle = state.cycle + 1;
+  const regs = state.regs.slice();
+  const dmem = state.dmem.slice();
+  const narration = [];
+  const wb = { valid: state.memwb.valid, rd: 0, value: null, wroteRegister: false };
+
+  // WB commits first so ID reads the value written in the first half-cycle.
+  if (state.memwb.valid && state.memwb.ctrl.regWrite) {
+    const source = state.memwb.ctrl.wbSel;
+    const value = source === 'MEM' ? state.memwb.memData
+      : source === 'PC4' ? state.memwb.pcPlus4 : state.memwb.aluResult;
+    wb.rd = state.memwb.rd; wb.value = value | 0;
+    if (state.memwb.rd !== 0) {
+      regs[state.memwb.rd] = value | 0;
+      wb.wroteRegister = true;
+    }
+    narration.push(state.memwb.rd === 0
+      ? `WB: ${state.memwb.ctrl.wbSel} result discarded for p0.`
+      : `WB: wrote ${value | 0} to p${state.memwb.rd}.`);
+  } else if (state.memwb.valid) narration.push('WB: instruction has no register write.');
+  regs[0] = 0;
+
+  let memData = 0;
+  const memory = { valid: state.exmem.valid, address: null, readData: null, writeData: null, didRead: false, didWrite: false };
+  if (state.exmem.valid && (state.exmem.ctrl.memRead || state.exmem.ctrl.memWrite)) {
+    const address = state.exmem.aluResult >>> 0;
+    memory.address = address;
+    if ((address & 3) !== 0) {
+      return fault(state, state.exmem.pc, `Memory address ${hex32(address)} is not word-aligned.`, {
+        cycle,
+        stages: { MEM: { ...memory, error: `Memory address ${hex32(address)} is not word-aligned.` } },
+        narration: [...narration, `MEM: stopped at misaligned address ${hex32(address)}.`],
+      }, { regs, dmem });
+    }
+    if (address > DATA_TOP * 4) {
+      return fault(state, state.exmem.pc, `Memory address ${hex32(address)} is outside data memory (0x00000000-0x00000FFC).`, {
+        cycle,
+        stages: { MEM: { ...memory, error: `Memory address ${hex32(address)} is outside data memory.` } },
+        narration: [...narration, `MEM: stopped at out-of-range address ${hex32(address)}.`],
+      }, { regs, dmem });
+    }
+    const index = address >>> 2;
+    if (state.exmem.ctrl.memRead) {
+      memData = state.dmem[index] | 0;
+      memory.readData = memData; memory.didRead = true;
+      narration.push(`MEM: read ${memData} from ${hex32(address)}.`);
+    } else {
+      memory.writeData = state.exmem.storeData | 0; memory.didWrite = true;
+      dmem[index] = state.exmem.storeData >>> 0;
+      narration.push(`MEM: stored ${state.exmem.storeData | 0} at ${hex32(address)}.`);
+    }
+  } else if (state.exmem.valid) narration.push('MEM: no data-memory access.');
+
+  const ex = execute(state.idex);
+  if (state.idex.valid && ex.target !== null) {
+    if ((ex.target & 3) !== 0 || ex.target >= WORDS * 4) {
+      return fault(state, state.idex.pc, `Control-transfer target ${hex32(ex.target)} is unaligned or outside instruction memory.`, {
+        cycle,
+        stages: {
+          EX: {
+            valid: true, pc: state.idex.pc, instr: state.idex.instr,
+            mnemonic: state.idex.mnemonic, aluA: ex.aluA | 0, aluB: ex.aluB | 0,
+            branchTaken: ex.taken, branchTarget: ex.target,
+            error: `Control-transfer target ${hex32(ex.target)} is unaligned or outside instruction memory.`,
+          },
+        },
+        narration: [...narration, `EX: stopped at invalid target ${hex32(ex.target)}.`],
+      }, { regs, dmem });
+    }
+    if (ex.taken || state.idex.ctrl.jump || state.idex.ctrl.jalr) {
+      narration.push(`EX: ${state.idex.mnemonic} transfers control to ${hex32(ex.target)}.`);
+    }
+  } else if (state.idex.valid) narration.push(`EX: ${state.idex.mnemonic} computed ${ex.result | 0}.`);
+
+  // Resolve EX before ID so an invalid younger word on a taken path is
+  // discarded by the flush instead of being reported as an executed fault.
+  const redirect = state.idex.valid && ex.target !== null && (ex.taken || state.idex.ctrl.jump || state.idex.ctrl.jalr);
+  let decoded = null;
+  try {
+    if (state.ifid.valid && !redirect) decoded = decode(state.ifid.instr, state.ifid.pc, regs);
+  } catch (error) {
+    return fault(state, state.ifid.pc, error.message, {
+      cycle,
+      stages: { ID: { valid: true, pc: state.ifid.pc, instr: state.ifid.instr, error: error.message } },
+      narration: [...narration, `ID: ${error.message}`],
+    }, { regs, dmem });
+  }
+  if (decoded) narration.push(`ID: decoded ${decoded.mnemonic}.`);
+
+  const oldFetchPc = state.pc >>> 0;
+  const fetched = state.haltPending ? null : {
+    valid: true, pc: oldFetchPc, instr: state.imem[oldFetchPc >>> 2] ?? 0,
+    pcPlus4: (oldFetchPc + 4) >>> 0,
+  };
+  let nextPc = state.haltPending ? state.pc >>> 0 : (state.pc + 4) >>> 0;
+  let nextIFID = fetched ?? bubbleIFID();
+  let nextIDEX = decoded ? {
+    valid: true, pc: state.ifid.pc, instr: state.ifid.instr, pcPlus4: state.ifid.pcPlus4,
+    rs1: decoded.rs1, rs2: decoded.rs2, rd: decoded.rd,
+    rs1Val: decoded.rs1Val | 0, rs2Val: decoded.rs2Val | 0, imm: decoded.imm | 0,
+    usesRs1: decoded.usesRs1, usesRs2: decoded.usesRs2, mnemonic: decoded.mnemonic,
+    ctrl: decoded.ctrl,
+  } : bubbleIDEX();
+
+  // Basic EX-stage redirect is needed for ISA control-flow semantics. M4 adds
+  // hazard-unit accounting, forwarding and load-use stalls around this path.
+  let haltPending = state.haltPending;
+  if (redirect) {
+    nextPc = ex.target;
+    nextIFID = bubbleIFID();
+    nextIDEX = bubbleIDEX();
+    if (ex.halt) haltPending = true;
+    narration.push('Control redirect: younger IF and ID slots were cleared.');
+  }
+
+  const nextEXMEM = state.idex.valid ? {
+    valid: true, pc: state.idex.pc, instr: state.idex.instr, pcPlus4: state.idex.pcPlus4,
+    rd: state.idex.rd, aluResult: ex.result | 0, storeData: state.idex.rs2Val | 0,
+    halt: ex.halt, ctrl: { ...state.idex.ctrl },
+  } : bubbleEXMEM();
+  const nextMEMWB = state.exmem.valid ? {
+    valid: true, pc: state.exmem.pc, instr: state.exmem.instr, pcPlus4: state.exmem.pcPlus4,
+    rd: state.exmem.rd, aluResult: state.exmem.aluResult | 0, memData: memData | 0,
+    halt: state.exmem.halt, ctrl: { ...state.exmem.ctrl },
+  } : bubbleMEMWB();
+
+  const halted = state.memwb.valid && state.memwb.halt;
+  if (halted) narration.push('WB: halt branch completed; execution stopped.');
+  const trace = {
+    cycle,
+    stages: {
+      IF: fetched ? { valid: true, pc: fetched.pc, instr: fetched.instr, flushed: redirect } : { valid: false, bubble: true },
+      ID: decoded ? {
+        valid: true, pc: state.ifid.pc, instr: state.ifid.instr, mnemonic: decoded.mnemonic,
+        rs1: decoded.rs1, rs2: decoded.rs2, rd: decoded.rd, imm: decoded.imm,
+      } : redirect && state.ifid.valid
+        ? { ...stageSummary(state.ifid), flushed: true }
+        : stageSummary(state.ifid),
+      EX: state.idex.valid ? {
+        valid: true, pc: state.idex.pc, instr: state.idex.instr, mnemonic: state.idex.mnemonic,
+        aluA: ex.aluA | 0, aluB: ex.aluB | 0, aluResult: ex.result | 0,
+        branchTaken: ex.taken, branchTarget: ex.target,
+      } : { valid: false, bubble: true },
+      MEM: { ...memory },
+      WB: {
+        valid: state.memwb.valid,
+        ...(state.memwb.valid
+          ? { pc: state.memwb.pc, instr: state.memwb.instr }
+          : { bubble: true }),
+        ...(state.memwb.valid && state.memwb.ctrl.regWrite ? { rd: wb.rd } : {}),
+        value: wb.value, wroteRegister: wb.wroteRegister,
+      },
+    },
+    control: {
+      ID: decoded ? { ...decoded.ctrl } : bubbleCtrl(),
+      EX: state.idex.valid ? { ...state.idex.ctrl } : bubbleCtrl(),
+      MEM: state.exmem.valid ? { ...state.exmem.ctrl } : bubbleCtrl(),
+      WB: state.memwb.valid ? { ...state.memwb.ctrl } : bubbleCtrl(),
+    },
+    memoryAddress: memory.address, memoryReadData: memory.readData,
+    memoryWriteData: memory.writeData, writeBackValue: wb.value,
+    redirect: redirect ? ex.target : null,
+    narration,
+  };
+
+  return {
+    ...state,
+    cycle, pc: nextPc, halted, haltPending,
+    regs, dmem,
+    ifid: nextIFID, idex: nextIDEX, exmem: nextEXMEM, memwb: nextMEMWB,
+    trace,
+  };
+}
+
+return { createState, reset, step };
+})();
 
 const $ = (id) => document.getElementById(id);
 
@@ -1079,7 +1473,263 @@ function render(result) {
     : names.map((n) => n + ' = ' + hex4(result.labels[n])).join('    ');
 }
 
-function run() { render(LIMO.assemble($('src').value)); }
+let assemblyResult = null;
+let coreState = null;
+let previousSnapshot = null;
+let runTimer = null;
+let runCycles = 0;
+const RUN_INTERVAL_MS = 180;
+const RUN_CYCLE_LIMIT = 5000;
+
+function u32Hex(value, digits = 8) {
+  return '0x' + (Number(value) >>> 0).toString(16).toUpperCase().padStart(digits, '0');
+}
+
+function registerName(index) {
+  if (index === 0) return 'p0 noto zero';
+  if (index === 1) return 'p1 hae ra';
+  if (index === 2) return 'p2 lesupa sp';
+  if (index >= 3 && index <= 4) return `p${index} nakoana n${index + 4}`;
+  if (index >= 5 && index <= 7) return `p${index} nakoana n${index - 5}`;
+  if (index >= 8 && index <= 9) return `p${index} bolokuoe b${index - 8}`;
+  if (index >= 10 && index <= 17) return `p${index} taba le pusetso t${index - 10}`;
+  if (index >= 18 && index <= 27) return `p${index} bolokuoe b${index - 16}`;
+  return `p${index} nakoana n${index - 25}`;
+}
+
+function sourceAt(pc) {
+  return assemblyResult?.lines?.find((line) => line.address === (Number(pc) >>> 0));
+}
+
+function makeSnapshot(state) {
+  if (!state) return null;
+  return {
+    regs: state.regs ? Array.from(state.regs) : [],
+    dmem: state.dmem ? Array.from(state.dmem) : [],
+  };
+}
+
+function buildRegisterView() {
+  const root = $('registers');
+  root.textContent = '';
+  for (let index = 0; index < 32; index++) {
+    const row = el('div', 'register-item');
+    row.id = `register-row-${index}`;
+    row.appendChild(el('span', 'register-name', registerName(index)));
+    row.appendChild(el('span', 'register-value', '0'));
+    root.appendChild(row);
+  }
+}
+
+function buildMemoryView() {
+  const root = $('memory');
+  root.textContent = '';
+  for (let index = 0; index < 1024; index++) {
+    const row = document.createElement('tr');
+    row.id = `memory-row-${index}`;
+    row.appendChild(el('td', 'mono', u32Hex(index * 4, 3)));
+    row.appendChild(el('td', 'mono', '0'));
+    row.appendChild(el('td', 'mono', u32Hex(0)));
+    root.appendChild(row);
+  }
+}
+
+function slotText(slot) {
+  if (!slot?.valid) return 'Bubble';
+  const line = sourceAt(slot.pc);
+  const instruction = line ? line.source.trim() : u32Hex(slot.instr);
+  return `${u32Hex(slot.pc, 3)}  ${instruction}  ${u32Hex(slot.instr)}`;
+}
+
+function setStage(name, text, active) {
+  const stage = $(`stage-${name}`);
+  stage.classList.toggle('active', Boolean(active));
+  $(`stage-${name}-value`).textContent = text;
+}
+
+function registerSummary(name, value) {
+  const signed = Number(value) | 0;
+  return `${name}=${signed} (${u32Hex(signed)})`;
+}
+
+function renderPipelineRegisters() {
+  const root = $('pipeline-registers');
+  root.textContent = '';
+  if (!coreState) {
+    root.appendChild(el('p', 'hint', 'No valid assembled program is loaded.'));
+    return;
+  }
+  const entries = [
+    ['IF/ID', coreState.ifid], ['ID/EX', coreState.idex],
+    ['EX/MEM', coreState.exmem], ['MEM/WB', coreState.memwb],
+  ];
+  for (const [name, slot] of entries) {
+    const card = el('section', 'pipeline-register');
+    card.appendChild(el('h3', '', name));
+    if (!slot?.valid) {
+      card.appendChild(el('pre', '', 'Bubble'));
+    } else {
+      const lines = [
+        `pc=${u32Hex(slot.pc)} instr=${u32Hex(slot.instr)}`,
+        `pc+4=${u32Hex(slot.pcPlus4)}`,
+      ];
+      for (const key of ['rs1', 'rs2', 'rd', 'imm', 'rs1Val', 'rs2Val', 'aluResult', 'storeData', 'memData']) {
+        if (slot[key] !== undefined) lines.push(`${key}=${slot[key]}`);
+      }
+      if (slot.ctrl) lines.push(`ctrl=${JSON.stringify(slot.ctrl)}`);
+      const source = sourceAt(slot.pc);
+      if (source) lines.push(`source=${source.source.trim()}`);
+      card.appendChild(el('pre', '', lines.join('\n')));
+    }
+    root.appendChild(card);
+  }
+}
+
+function renderTrace() {
+  const root = $('narration');
+  root.textContent = '';
+  const trace = coreState?.trace;
+  const narration = trace?.narration;
+  const lines = Array.isArray(narration) ? narration : (typeof narration === 'string' ? narration.split('\n') : []);
+  if (!lines.length) {
+    root.appendChild(el('li', 'hint', coreState ? 'The core did not provide narration for this cycle.' : 'Assemble a valid program to begin.'));
+    return;
+  }
+  for (const line of lines) root.appendChild(el('li', '', String(line)));
+}
+
+function renderCore() {
+  const loaded = Boolean(coreState && assemblyResult?.ok);
+  $('step').disabled = !loaded || Boolean(coreState?.halted) || Boolean(runTimer);
+  $('run').disabled = !loaded || Boolean(coreState?.halted);
+  $('reset').disabled = !loaded;
+  $('core-cycle').textContent = `Cycle ${coreState?.cycle ?? 0}`;
+  $('core-pc').textContent = `PC ${u32Hex(coreState?.pc ?? 0)}`;
+
+  if (!loaded) {
+    for (const stage of ['if', 'id', 'ex', 'mem', 'wb']) setStage(stage, 'Bubble', false);
+  } else {
+    const fetchPc = Number(coreState.pc) >>> 0;
+    const fetchLine = sourceAt(fetchPc);
+    setStage('if', fetchLine ? `${u32Hex(fetchPc, 3)}  ${fetchLine.source.trim()}` : (coreState.halted ? 'Halted' : 'Program end'), Boolean(fetchLine));
+    setStage('id', slotText(coreState.ifid), Boolean(coreState.ifid?.valid));
+    setStage('ex', slotText(coreState.idex), Boolean(coreState.idex?.valid));
+    setStage('mem', slotText(coreState.exmem), Boolean(coreState.exmem?.valid));
+    setStage('wb', slotText(coreState.memwb), Boolean(coreState.memwb?.valid));
+  }
+
+  for (let index = 0; index < 32; index++) {
+    const value = Number(coreState?.regs?.[index] ?? 0) | 0;
+    const prior = previousSnapshot?.regs?.[index];
+    const changed = prior !== undefined && prior !== value;
+    const row = $(`register-row-${index}`);
+    row.classList.toggle('changed', changed);
+    const valueCell = row.lastElementChild;
+    valueCell.textContent = `${changed ? '* ' : ''}${value}`;
+    valueCell.title = u32Hex(value);
+  }
+
+  for (let index = 0; index < 1024; index++) {
+    const value = Number(coreState?.dmem?.[index] ?? 0) >>> 0;
+    const prior = previousSnapshot?.dmem?.[index];
+    const changed = prior !== undefined && prior !== value;
+    const row = $(`memory-row-${index}`);
+    row.classList.toggle('changed', changed);
+    row.cells[1].textContent = `${changed ? '* ' : ''}${value | 0}`;
+    row.cells[2].textContent = u32Hex(value);
+  }
+
+  const status = $('core-status');
+  const coreError = coreState?.error;
+  const errorMessage = typeof coreError === 'string' ? coreError : coreError?.message;
+  const errorLocation = Number.isFinite(coreError?.pc) ? ` at ${u32Hex(coreError.pc)}` : '';
+  status.className = `core-message ${coreError ? 'error' : (loaded ? 'ok' : '')}`;
+  status.textContent = !loaded ? 'Assemble a valid program to load the core state.'
+    : (coreError ? `Run stopped${errorLocation}: ${errorMessage}`
+      : (coreState.halted ? 'Program halted.' : 'UI is reading the core state; use Step or Run to advance it.'));
+  renderPipelineRegisters();
+  renderTrace();
+}
+
+function stopRun() {
+  if (runTimer) clearTimeout(runTimer);
+  runTimer = null;
+  $('run').textContent = 'Run';
+  renderCore();
+}
+
+function advanceOneCycle() {
+  if (!coreState || coreState.halted) return false;
+  try {
+    previousSnapshot = makeSnapshot(coreState);
+    coreState = PIPELINE.step(coreState);
+    renderCore();
+    return true;
+  } catch (error) {
+    stopRun();
+    const status = $('core-status');
+    status.className = 'core-message error';
+    status.textContent = `Core step failed: ${error.message}`;
+    return false;
+  }
+}
+
+function runTick() {
+  if (!runTimer || !coreState) return;
+  if (coreState.halted) {
+    stopRun();
+    return;
+  }
+  if (runCycles >= RUN_CYCLE_LIMIT) {
+    stopRun();
+    $('core-status').textContent = `Paused at the ${RUN_CYCLE_LIMIT}-cycle safety limit.`;
+    return;
+  }
+  runCycles++;
+  if (!advanceOneCycle() || coreState.halted) {
+    stopRun();
+    return;
+  }
+  runTimer = setTimeout(runTick, RUN_INTERVAL_MS);
+}
+
+function assembleAndLoad() {
+  stopRun();
+  assemblyResult = LIMO.assemble($('src').value);
+  render(assemblyResult);
+  previousSnapshot = null;
+  if (assemblyResult.ok) {
+    const imem = new Uint32Array(1024);
+    imem.set(assemblyResult.words);
+    coreState = PIPELINE.createState({ imem });
+    runCycles = 0;
+  } else {
+    coreState = null;
+  }
+  renderCore();
+}
+
+function startOrPauseRun() {
+  if (runTimer) {
+    stopRun();
+    return;
+  }
+  if (!coreState || coreState.halted) return;
+  runCycles = 0;
+  $('run').textContent = 'Pause';
+  runTimer = setTimeout(runTick, 0);
+  renderCore();
+  $('run').textContent = 'Pause';
+}
+
+function resetCore() {
+  stopRun();
+  if (!coreState) return;
+  coreState = PIPELINE.reset(coreState);
+  previousSnapshot = null;
+  runCycles = 0;
+  renderCore();
+}
 
 // set up the example list
 for (const name of Object.keys(EXAMPLES)) {
@@ -1087,12 +1737,17 @@ for (const name of Object.keys(EXAMPLES)) {
   option.value = name;
   $('ex').appendChild(option);
 }
-$('ex').addEventListener('change', () => { $('src').value = EXAMPLES[$('ex').value]; run(); });
-$('go').addEventListener('click', run);
-$('src').addEventListener('input', run);
+buildRegisterView();
+buildMemoryView();
+$('ex').addEventListener('change', () => { $('src').value = EXAMPLES[$('ex').value]; assembleAndLoad(); });
+$('go').addEventListener('click', assembleAndLoad);
+$('src').addEventListener('input', assembleAndLoad);
+$('step').addEventListener('click', () => { stopRun(); advanceOneCycle(); });
+$('run').addEventListener('click', startOrPauseRun);
+$('reset').addEventListener('click', resetCore);
 
 $('src').value = EXAMPLES[$('ex').value];
-run();
+assembleAndLoad();
 </script>
 </body>
 </html>

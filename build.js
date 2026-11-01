@@ -13,6 +13,7 @@ function inline(code) {
 // Order matters: isa.js first (the tables), then the files that use it.
 const assemblerCode = ['isa', 'assembler', 'decode', 'program']
   .map((name) => inline(read('./src/' + name + '.js'))).join('\n');
+const pipelineCode = inline(read('./src/core/pipelineState.mjs'));
 
 const examples = {};
 for (const file of readdirSync(new URL('./examples/', import.meta.url)).sort()) {
@@ -22,5 +23,6 @@ for (const file of readdirSync(new URL('./examples/', import.meta.url)).sort()) 
 let html = read('./page.template.html');
 html = html.replace('/*ASSEMBLER*/', () => `const LIMO = (function () {\n${assemblerCode}\nreturn { assemble, decode, disassemble, registerName, buildInstructionMemory };\n})();`);
 html = html.replace('/*EXAMPLES*/', () => 'const EXAMPLES = ' + JSON.stringify(examples) + ';');
+html = html.replace('/*CORE*/', () => `const PIPELINE = (function () {\n${pipelineCode}\nreturn { createState, reset, step };\n})();`);
 writeFileSync(new URL('./src/index.html', import.meta.url), html);
 console.log('src/index.html written (' + html.length + ' bytes)');

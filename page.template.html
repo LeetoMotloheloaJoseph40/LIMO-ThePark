@@ -43,6 +43,30 @@ code,.mono{font-family:ui-monospace,Consolas,Menlo,monospace}
 .stages{display:grid;grid-template-columns:repeat(5,minmax(70px,1fr));gap:8px}
 .stage{border:1px solid var(--line);border-radius:6px;padding:10px;text-align:center;background:var(--bg)}
 .stage strong{display:block}.stage small{color:var(--muted)}
+.stage.active{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.stage .stage-value{display:block;margin-top:6px;font:12px/1.35 ui-monospace,Consolas,Menlo,monospace;overflow-wrap:anywhere}
+.sim-controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0 4px}
+.sim-controls button:disabled{opacity:.5;cursor:not-allowed}
+.sim-meta{font:13px/1.5 ui-monospace,Consolas,Menlo,monospace;color:var(--muted)}
+.state-scroll{max-height:280px;overflow:auto;border:1px solid var(--line);border-radius:6px}
+.state-table{width:100%;min-width:0;font-size:12px}
+.state-table th,.state-table td{padding:4px 6px;white-space:nowrap}
+.state-table .changed{font-weight:700}
+.state-table .changed .changed-mark{color:var(--accent);font-weight:800}
+.pipeline-registers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.pipeline-register{border:1px solid var(--line);border-radius:6px;padding:8px;min-width:0}
+.pipeline-register h3{font-size:.85rem;margin:0 0 4px}
+.pipeline-register pre{white-space:pre-wrap;overflow-wrap:anywhere;margin:0;color:var(--muted);font:11px/1.4 ui-monospace,Consolas,Menlo,monospace}
+.core-message{min-height:1.5em;margin:6px 0;color:var(--muted)}
+.core-message.error{color:var(--err)}
+.core-message.ok{color:var(--ok)}
+.register-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px 8px}
+.register-item{display:flex;justify-content:space-between;gap:6px;border-bottom:1px solid var(--line);padding:3px 0;font:11px/1.4 ui-monospace,Consolas,Menlo,monospace}
+.register-item.changed{font-weight:700}
+.register-name{color:var(--muted);white-space:nowrap}
+.register-value{white-space:nowrap;text-align:right}
+.register-value .changed-mark{color:var(--accent)}
+.memory-summary{font-size:12px;color:var(--muted);margin:0 0 6px}
 .section{margin:16px 0}
 @media(max-width:800px){.workspace{grid-template-columns:1fr}.editor textarea{min-height:220px}}
 @media(max-width:520px){main{padding:12px}.state-grid{grid-template-columns:1fr}.stages{grid-template-columns:repeat(2,1fr)}.stages .stage:last-child{grid-column:1/-1}}
@@ -56,13 +80,20 @@ code,.mono{font-family:ui-monospace,Consolas,Menlo,monospace}
 <section class="section card" aria-labelledby="pipeline-heading">
   <h2 id="pipeline-heading" class="panel-title">Five-stage pipeline</h2>
   <div class="stages" aria-label="Pipeline stage layout">
-    <div class="stage"><strong>IF</strong><small>Instruction Fetch</small></div>
-    <div class="stage"><strong>ID</strong><small>Decode</small></div>
-    <div class="stage"><strong>EX</strong><small>Execute</small></div>
-    <div class="stage"><strong>MEM</strong><small>Memory</small></div>
-    <div class="stage"><strong>WB</strong><small>Write Back</small></div>
+    <div class="stage" id="stage-if"><strong>IF</strong><small>Instruction Fetch</small><span class="stage-value" id="stage-if-value">Bubble</span></div>
+    <div class="stage" id="stage-id"><strong>ID</strong><small>Decode</small><span class="stage-value" id="stage-id-value">Bubble</span></div>
+    <div class="stage" id="stage-ex"><strong>EX</strong><small>Execute</small><span class="stage-value" id="stage-ex-value">Bubble</span></div>
+    <div class="stage" id="stage-mem"><strong>MEM</strong><small>Memory</small><span class="stage-value" id="stage-mem-value">Bubble</span></div>
+    <div class="stage" id="stage-wb"><strong>WB</strong><small>Write Back</small><span class="stage-value" id="stage-wb-value">Bubble</span></div>
   </div>
-  <p class="hint">Pipeline execution controls and live values will connect to the processor core.</p>
+  <div class="sim-controls" aria-label="Pipeline controls">
+    <button id="step" type="button" disabled>Step</button>
+    <button id="run" type="button" disabled>Run</button>
+    <button id="reset" type="button" disabled>Reset</button>
+    <span class="sim-meta" id="core-cycle">Cycle 0</span>
+    <span class="sim-meta" id="core-pc">PC 0x00000000</span>
+  </div>
+  <p id="core-status" class="core-message" role="status" aria-live="polite">Assemble a program to load the pipeline state.</p>
 </section>
 
 <div class="workspace">
@@ -99,11 +130,11 @@ code,.mono{font-family:ui-monospace,Consolas,Menlo,monospace}
 
 <aside class="stack" aria-label="Machine state and narration">
   <div class="state-grid">
-    <section class="card" aria-labelledby="register-heading"><h2 id="register-heading" class="panel-title">Registers</h2><div class="placeholder">Register values will appear here when the pipeline core is connected.</div></section>
-    <section class="card" aria-labelledby="memory-heading"><h2 id="memory-heading" class="panel-title">Memory</h2><div class="placeholder">Data memory addresses and values will appear here.</div></section>
+    <section class="card" aria-labelledby="register-heading"><h2 id="register-heading" class="panel-title">Registers</h2><div id="registers" class="register-grid" aria-live="polite"></div></section>
+    <section class="card" aria-labelledby="memory-heading"><h2 id="memory-heading" class="panel-title">Data memory</h2><p class="memory-summary">Byte addresses 0x000-0xFFC; values are words.</p><div class="state-scroll"><table class="state-table"><thead><tr><th>Address</th><th>Signed</th><th>Hex</th></tr></thead><tbody id="memory"></tbody></table></div></section>
   </div>
-  <section class="card" aria-labelledby="narration-heading"><h2 id="narration-heading" class="panel-title">Cycle narration</h2><div class="placeholder">Stage-by-stage explanations will appear here as the program runs.</div></section>
-  <section class="card" aria-labelledby="register-model-heading"><h2 id="register-model-heading" class="panel-title">Pipeline registers</h2><div class="placeholder">IF/ID · ID/EX · EX/MEM · MEM/WB live contents will appear here.</div></section>
+  <section class="card" aria-labelledby="narration-heading"><h2 id="narration-heading" class="panel-title">Cycle trace</h2><ul id="narration" aria-live="polite"><li class="hint">Step the core to show its per-cycle trace.</li></ul></section>
+  <section class="card" aria-labelledby="register-model-heading"><h2 id="register-model-heading" class="panel-title">Pipeline registers</h2><div id="pipeline-registers" class="pipeline-registers" aria-live="polite"></div></section>
 </aside>
 </div>
 </main>
@@ -111,6 +142,7 @@ code,.mono{font-family:ui-monospace,Consolas,Menlo,monospace}
 <script>
 /*ASSEMBLER*/
 /*EXAMPLES*/
+/*CORE*/
 
 const $ = (id) => document.getElementById(id);
 
@@ -185,7 +217,263 @@ function render(result) {
     : names.map((n) => n + ' = ' + hex4(result.labels[n])).join('    ');
 }
 
-function run() { render(LIMO.assemble($('src').value)); }
+let assemblyResult = null;
+let coreState = null;
+let previousSnapshot = null;
+let runTimer = null;
+let runCycles = 0;
+const RUN_INTERVAL_MS = 180;
+const RUN_CYCLE_LIMIT = 5000;
+
+function u32Hex(value, digits = 8) {
+  return '0x' + (Number(value) >>> 0).toString(16).toUpperCase().padStart(digits, '0');
+}
+
+function registerName(index) {
+  if (index === 0) return 'p0 noto zero';
+  if (index === 1) return 'p1 hae ra';
+  if (index === 2) return 'p2 lesupa sp';
+  if (index >= 3 && index <= 4) return `p${index} nakoana n${index + 4}`;
+  if (index >= 5 && index <= 7) return `p${index} nakoana n${index - 5}`;
+  if (index >= 8 && index <= 9) return `p${index} bolokuoe b${index - 8}`;
+  if (index >= 10 && index <= 17) return `p${index} taba le pusetso t${index - 10}`;
+  if (index >= 18 && index <= 27) return `p${index} bolokuoe b${index - 16}`;
+  return `p${index} nakoana n${index - 25}`;
+}
+
+function sourceAt(pc) {
+  return assemblyResult?.lines?.find((line) => line.address === (Number(pc) >>> 0));
+}
+
+function makeSnapshot(state) {
+  if (!state) return null;
+  return {
+    regs: state.regs ? Array.from(state.regs) : [],
+    dmem: state.dmem ? Array.from(state.dmem) : [],
+  };
+}
+
+function buildRegisterView() {
+  const root = $('registers');
+  root.textContent = '';
+  for (let index = 0; index < 32; index++) {
+    const row = el('div', 'register-item');
+    row.id = `register-row-${index}`;
+    row.appendChild(el('span', 'register-name', registerName(index)));
+    row.appendChild(el('span', 'register-value', '0'));
+    root.appendChild(row);
+  }
+}
+
+function buildMemoryView() {
+  const root = $('memory');
+  root.textContent = '';
+  for (let index = 0; index < 1024; index++) {
+    const row = document.createElement('tr');
+    row.id = `memory-row-${index}`;
+    row.appendChild(el('td', 'mono', u32Hex(index * 4, 3)));
+    row.appendChild(el('td', 'mono', '0'));
+    row.appendChild(el('td', 'mono', u32Hex(0)));
+    root.appendChild(row);
+  }
+}
+
+function slotText(slot) {
+  if (!slot?.valid) return 'Bubble';
+  const line = sourceAt(slot.pc);
+  const instruction = line ? line.source.trim() : u32Hex(slot.instr);
+  return `${u32Hex(slot.pc, 3)}  ${instruction}  ${u32Hex(slot.instr)}`;
+}
+
+function setStage(name, text, active) {
+  const stage = $(`stage-${name}`);
+  stage.classList.toggle('active', Boolean(active));
+  $(`stage-${name}-value`).textContent = text;
+}
+
+function registerSummary(name, value) {
+  const signed = Number(value) | 0;
+  return `${name}=${signed} (${u32Hex(signed)})`;
+}
+
+function renderPipelineRegisters() {
+  const root = $('pipeline-registers');
+  root.textContent = '';
+  if (!coreState) {
+    root.appendChild(el('p', 'hint', 'No valid assembled program is loaded.'));
+    return;
+  }
+  const entries = [
+    ['IF/ID', coreState.ifid], ['ID/EX', coreState.idex],
+    ['EX/MEM', coreState.exmem], ['MEM/WB', coreState.memwb],
+  ];
+  for (const [name, slot] of entries) {
+    const card = el('section', 'pipeline-register');
+    card.appendChild(el('h3', '', name));
+    if (!slot?.valid) {
+      card.appendChild(el('pre', '', 'Bubble'));
+    } else {
+      const lines = [
+        `pc=${u32Hex(slot.pc)} instr=${u32Hex(slot.instr)}`,
+        `pc+4=${u32Hex(slot.pcPlus4)}`,
+      ];
+      for (const key of ['rs1', 'rs2', 'rd', 'imm', 'rs1Val', 'rs2Val', 'aluResult', 'storeData', 'memData']) {
+        if (slot[key] !== undefined) lines.push(`${key}=${slot[key]}`);
+      }
+      if (slot.ctrl) lines.push(`ctrl=${JSON.stringify(slot.ctrl)}`);
+      const source = sourceAt(slot.pc);
+      if (source) lines.push(`source=${source.source.trim()}`);
+      card.appendChild(el('pre', '', lines.join('\n')));
+    }
+    root.appendChild(card);
+  }
+}
+
+function renderTrace() {
+  const root = $('narration');
+  root.textContent = '';
+  const trace = coreState?.trace;
+  const narration = trace?.narration;
+  const lines = Array.isArray(narration) ? narration : (typeof narration === 'string' ? narration.split('\n') : []);
+  if (!lines.length) {
+    root.appendChild(el('li', 'hint', coreState ? 'The core did not provide narration for this cycle.' : 'Assemble a valid program to begin.'));
+    return;
+  }
+  for (const line of lines) root.appendChild(el('li', '', String(line)));
+}
+
+function renderCore() {
+  const loaded = Boolean(coreState && assemblyResult?.ok);
+  $('step').disabled = !loaded || Boolean(coreState?.halted) || Boolean(runTimer);
+  $('run').disabled = !loaded || Boolean(coreState?.halted);
+  $('reset').disabled = !loaded;
+  $('core-cycle').textContent = `Cycle ${coreState?.cycle ?? 0}`;
+  $('core-pc').textContent = `PC ${u32Hex(coreState?.pc ?? 0)}`;
+
+  if (!loaded) {
+    for (const stage of ['if', 'id', 'ex', 'mem', 'wb']) setStage(stage, 'Bubble', false);
+  } else {
+    const fetchPc = Number(coreState.pc) >>> 0;
+    const fetchLine = sourceAt(fetchPc);
+    setStage('if', fetchLine ? `${u32Hex(fetchPc, 3)}  ${fetchLine.source.trim()}` : (coreState.halted ? 'Halted' : 'Program end'), Boolean(fetchLine));
+    setStage('id', slotText(coreState.ifid), Boolean(coreState.ifid?.valid));
+    setStage('ex', slotText(coreState.idex), Boolean(coreState.idex?.valid));
+    setStage('mem', slotText(coreState.exmem), Boolean(coreState.exmem?.valid));
+    setStage('wb', slotText(coreState.memwb), Boolean(coreState.memwb?.valid));
+  }
+
+  for (let index = 0; index < 32; index++) {
+    const value = Number(coreState?.regs?.[index] ?? 0) | 0;
+    const prior = previousSnapshot?.regs?.[index];
+    const changed = prior !== undefined && prior !== value;
+    const row = $(`register-row-${index}`);
+    row.classList.toggle('changed', changed);
+    const valueCell = row.lastElementChild;
+    valueCell.textContent = `${changed ? '* ' : ''}${value}`;
+    valueCell.title = u32Hex(value);
+  }
+
+  for (let index = 0; index < 1024; index++) {
+    const value = Number(coreState?.dmem?.[index] ?? 0) >>> 0;
+    const prior = previousSnapshot?.dmem?.[index];
+    const changed = prior !== undefined && prior !== value;
+    const row = $(`memory-row-${index}`);
+    row.classList.toggle('changed', changed);
+    row.cells[1].textContent = `${changed ? '* ' : ''}${value | 0}`;
+    row.cells[2].textContent = u32Hex(value);
+  }
+
+  const status = $('core-status');
+  const coreError = coreState?.error;
+  const errorMessage = typeof coreError === 'string' ? coreError : coreError?.message;
+  const errorLocation = Number.isFinite(coreError?.pc) ? ` at ${u32Hex(coreError.pc)}` : '';
+  status.className = `core-message ${coreError ? 'error' : (loaded ? 'ok' : '')}`;
+  status.textContent = !loaded ? 'Assemble a valid program to load the core state.'
+    : (coreError ? `Run stopped${errorLocation}: ${errorMessage}`
+      : (coreState.halted ? 'Program halted.' : 'UI is reading the core state; use Step or Run to advance it.'));
+  renderPipelineRegisters();
+  renderTrace();
+}
+
+function stopRun() {
+  if (runTimer) clearTimeout(runTimer);
+  runTimer = null;
+  $('run').textContent = 'Run';
+  renderCore();
+}
+
+function advanceOneCycle() {
+  if (!coreState || coreState.halted) return false;
+  try {
+    previousSnapshot = makeSnapshot(coreState);
+    coreState = PIPELINE.step(coreState);
+    renderCore();
+    return true;
+  } catch (error) {
+    stopRun();
+    const status = $('core-status');
+    status.className = 'core-message error';
+    status.textContent = `Core step failed: ${error.message}`;
+    return false;
+  }
+}
+
+function runTick() {
+  if (!runTimer || !coreState) return;
+  if (coreState.halted) {
+    stopRun();
+    return;
+  }
+  if (runCycles >= RUN_CYCLE_LIMIT) {
+    stopRun();
+    $('core-status').textContent = `Paused at the ${RUN_CYCLE_LIMIT}-cycle safety limit.`;
+    return;
+  }
+  runCycles++;
+  if (!advanceOneCycle() || coreState.halted) {
+    stopRun();
+    return;
+  }
+  runTimer = setTimeout(runTick, RUN_INTERVAL_MS);
+}
+
+function assembleAndLoad() {
+  stopRun();
+  assemblyResult = LIMO.assemble($('src').value);
+  render(assemblyResult);
+  previousSnapshot = null;
+  if (assemblyResult.ok) {
+    const imem = new Uint32Array(1024);
+    imem.set(assemblyResult.words);
+    coreState = PIPELINE.createState({ imem });
+    runCycles = 0;
+  } else {
+    coreState = null;
+  }
+  renderCore();
+}
+
+function startOrPauseRun() {
+  if (runTimer) {
+    stopRun();
+    return;
+  }
+  if (!coreState || coreState.halted) return;
+  runCycles = 0;
+  $('run').textContent = 'Pause';
+  runTimer = setTimeout(runTick, 0);
+  renderCore();
+  $('run').textContent = 'Pause';
+}
+
+function resetCore() {
+  stopRun();
+  if (!coreState) return;
+  coreState = PIPELINE.reset(coreState);
+  previousSnapshot = null;
+  runCycles = 0;
+  renderCore();
+}
 
 // set up the example list
 for (const name of Object.keys(EXAMPLES)) {
@@ -193,12 +481,17 @@ for (const name of Object.keys(EXAMPLES)) {
   option.value = name;
   $('ex').appendChild(option);
 }
-$('ex').addEventListener('change', () => { $('src').value = EXAMPLES[$('ex').value]; run(); });
-$('go').addEventListener('click', run);
-$('src').addEventListener('input', run);
+buildRegisterView();
+buildMemoryView();
+$('ex').addEventListener('change', () => { $('src').value = EXAMPLES[$('ex').value]; assembleAndLoad(); });
+$('go').addEventListener('click', assembleAndLoad);
+$('src').addEventListener('input', assembleAndLoad);
+$('step').addEventListener('click', () => { stopRun(); advanceOneCycle(); });
+$('run').addEventListener('click', startOrPauseRun);
+$('reset').addEventListener('click', resetCore);
 
 $('src').value = EXAMPLES[$('ex').value];
-run();
+assembleAndLoad();
 </script>
 </body>
 </html>
