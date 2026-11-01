@@ -1,6 +1,6 @@
-# Interface contracts: assembler -> core -> UI (M2)
+# Interface contracts: assembler -> core -> UI
 
-Status: PROPOSAL for issue #25. Needs a comment "agreed" from Kabelo (assembler) and Thabo (UI). Field names for pipeline state are defined in `docs/pipeline-registers.md`.
+Status: M2 interface proposal with the core API implemented for M3. Field names for pipeline state are defined in `docs/pipeline-registers.md`.
 
 ## 1. Layers and who owns them
 | Layer | Owner | Responsibility | Must not |
@@ -45,14 +45,18 @@ The core consumes only `words`. A small glue step copies them into instruction m
 Module: `src/core/pipelineState.mjs`. Exports: `createState`, `reset`, `step`.
 ~~~js
 state = {
-  cycle: number, pc: number, halted: boolean,
+  cycle: number, pc: number, halted: boolean, haltPending: boolean,
+  error: null | { pc: number, message: string }, trace: object | null,
   regs: Int32Array(32), imem: Uint32Array(1024), dmem: Uint32Array(1024),
   ifid, idex, exmem, memwb      // each has valid: boolean plus its fields
 }
 ~~~
 - UI keeps `previous` (the state before the last step) only to mark changed values.
 - From M3 the core also returns a per-cycle `trace` (ALU inputs and result, branch target, memory address and data, write-back value, narration lines).
-- Reset: the UI calls `reset(state)`, then re-renders. Cycle counter and all four registers go back to the reset values.
+- `trace.stages` and `trace.control` report the IF/ID/EX/MEM/WB activity and control records for the last step. `trace.redirect` is the EX-stage control-transfer target; `trace.narration` is an array of plain-language events.
+- An invalid instruction or invalid memory/control-transfer address stops the core with `halted = true` and `error = { pc, message }`.
+- `haltPending` is true after the self-branch halt resolves in EX; this prevents another fetch while the halt instruction drains to WB.
+- Reset: the UI calls `reset(state)`, then re-renders. `pc`, `cycle`, all architectural registers and data memory return to reset values; the loaded `imem` is preserved and all four pipeline registers become bubbles.
 - Step: the UI replaces its state with `step(state)` and re-renders. It never calls `step` twice for one click.
 
 ## 5. Display formatting (UI side)
@@ -67,10 +71,12 @@ state = {
 
 Mapping a `pc` to source text is done in the UI by looking up `assembly.lines` with `address === pc`; the core stays unaware of source text.
 
-## 6. Placeholders at M2
-- `step` is a scaffold: it fetches and moves instruction metadata only.
-- Decoded fields, control signals, datapath values and narration are empty until M3.
-- The UI may render those areas as labelled placeholders ("Available in M3").
+## 6. M3 core behavior
+- `step` decodes and executes the supported LIMO instructions through IF, ID, EX, MEM and WB.
+- A taken branch or jump redirects in EX and flushes the two younger instructions. The trace identifies the flushed IF/ID entries.
+- The self-branch halt prevents further fetches and stops when the branch completes WB.
+- Invalid instructions, invalid memory addresses and invalid control-transfer targets stop with `halted = true` and a plain-language `error`.
+- Data forwarding, load-use stalls and hazard statistics are M4 work; M3 execution programs must be scheduled without unresolved register dependencies.
 
 ## 7. Open questions for sign-off
 - Kabelo: does your output match section 2? Please comment differences here.
