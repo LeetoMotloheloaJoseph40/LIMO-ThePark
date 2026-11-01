@@ -798,46 +798,292 @@ return { assemble };
 })();
 const EXAMPLES = {"CountFirstN":"# CountFirstN - sums 1 + 2 + ... + N for N = 5 (M1 sample program 1)\r\n# Expected final state: t0 = 5, t1 = 15, t2 = 6\r\n# N = 25 instructions, 0 stalls, 12 flushed (6 taken transfers x 2) -> 41 cycles\r\nkopanyah t0, noto, 5      # t0 = N = 5\r\nkopanyah t1, noto, 0      # sum = 0\r\nkopanyah t2, noto, 1      # i = 1\r\nloop: nyane t0, t2, done  # if N < i, finish (taken once)\r\nkopanya t1, t1, t2        # sum = sum + i\r\nkopanyah t2, t2, 1        # i = i + 1\r\ntlola noto, loop          # jump back to loop (taken 5 times)\r\ndone: lekana noto, noto, done   # halt (branch to itself)\r\n","alu_mix":"# alu_mix - one use of every arithmetic and logic instruction, no hazards (new in ISA v1.1)\r\n# Covers tlosa, kapa and chetse, which no M1 sample program used.\r\n# Expected final state: t0 = 12, t1 = 10, t2 = 2, t3 = 14, t4 = 8, t5 = 96,\r\n#   t6 = 0xFFFFFFFE (-2 as a signed number)\r\n# N = 8, 0 stalls, 0 flushed -> 12 cycles\r\nkopanyah t0, noto, 12     # t0 = 12 (0b1100)\r\nkopanyah t1, noto, 10     # t1 = 10 (0b1010)\r\ntlosa t2, t0, t1          # t2 = 12 - 10 = 2 (RAW on t1: forwarded)\r\nkapa t3, t0, t1           # t3 = 12 OR 10 = 14\r\nle t4, t0, t1             # t4 = 12 AND 10 = 8\r\nchetse t5, t0, 3          # t5 = 12 << 3 = 96\r\ntlosa t6, t1, t0          # t6 = 10 - 12 = -2\r\nqeta: lekana noto, noto, qeta   # halt\r\n","compare_2_int":"# compare_2_int - stores A and B, loads them back, keeps the larger at MEM[16]\r\n# (M1 sample program 2; v1.1 fixes the halt label: qetile branched to \"qetiled\")\r\n#\r\n# As written (A = 25, B = 17):\r\n#   MEM[0] = 25, MEM[4] = 17, MEM[16] = 25; t0 = 17, n0 = 25, n1 = 17, n2 = 25\r\n#   N = 11, 1 stall, 2 flushed -> 18 cycles\r\n# Variant: change line \"kopanyah t0, noto, 17\" to 40 (nyane is then taken):\r\n#   MEM[4] = MEM[16] = 40; t0 = n1 = n2 = 40; n0 = 25\r\n#   N = 10, 1 stall, 2 flushed -> 17 cycles\r\nkopanyah t0, noto, 25     # t0 = 25 (value A)\r\nboloka t0, 0(noto)        # MEM[0] = A (RAW on t0: forwarded)\r\nkopanyah t0, noto, 17     # t0 = 17 (value B)\r\nboloka t0, 4(noto)        # MEM[4] = B\r\ntshela n0, 0(noto)        # n0 = A\r\ntshela n1, 4(noto)        # n1 = B\r\nnyane n0, n1, nka_b       # if A < B, go to nka_b (load-use: 1 stall)\r\nkopanya n2, n0, noto      # else result = A (a register copy)\r\ntlola noto, qeta          # skip the B case (taken)\r\nnka_b: kopanya n2, n1, noto     # result = B\r\nqeta: boloka n2, 16(noto)       # MEM[16] = larger value\r\nqetile: lekana noto, noto, qetile   # halt\r\n","count_even":"# count_even - counts the even numbers in a five-element array (M1 sample program 3)\r\n# No multiply, so a[index]'s address is built by repeated addition; no andi, so the\r\n# parity mask lives in t7.\r\n# Expected final state: MEM[0..16] = 4, 7, 10, 3, 8; t0 = 0, t1 = 3 (the count),\r\n#   t2 = 5, t3 = 5, t4 = 4, t5 = 16, t6 = 0, t7 = 1, n0 = 8\r\n# N = 111, 5 stalls (one per element), 46 flushed (23 taken transfers x 2) -> 166 cycles\r\nkopanyah n0, noto, 4      # initialise the array a[0..4] = 4, 7, 10, 3, 8\r\nboloka n0, 0(noto)        # a[0] = 4\r\nkopanyah n0, noto, 7\r\nboloka n0, 4(noto)        # a[1] = 7\r\nkopanyah n0, noto, 10\r\nboloka n0, 8(noto)        # a[2] = 10\r\nkopanyah n0, noto, 3\r\nboloka n0, 12(noto)       # a[3] = 3\r\nkopanyah n0, noto, 8\r\nboloka n0, 16(noto)       # a[4] = 8\r\nkopanyah t0, noto, 0      # base address = 0\r\nkopanyah t1, noto, 0      # count = 0\r\nkopanyah t2, noto, 0      # index = 0\r\nkopanyah t3, noto, 5      # array length = 5\r\nkopanyah t4, noto, 4      # element size = 4\r\nkopanyah t7, noto, 1      # mask = 1 (LIMO has no andi)\r\nloop: lekana t2, t3, done # if index == length, finish\r\nkopanyah t5, noto, 0      # offset = 0\r\nkopanyah t6, noto, 0      # counter = 0\r\noffset_loop: lekana t6, t2, check   # if counter == index, offset is ready\r\nkopanya t5, t5, t4        # offset = offset + 4 (no multiply)\r\nkopanyah t6, t6, 1        # counter++\r\ntlola noto, offset_loop   # repeat\r\ncheck: kopanya t5, t0, t5 # address = base + offset\r\ntshela t6, 0(t5)          # load a[index] (RAW on t5: forwarded)\r\nle t6, t6, t7             # t6 = a[index] AND 1 (load-use: 1 stall)\r\nhaelekane t6, noto, skip  # odd: do not count it (RAW on t6: forwarded)\r\nkopanyah t1, t1, 1        # even: count++\r\nskip: kopanyah t2, t2, 1  # index++\r\ntlola noto, loop          # next element\r\ndone: lekana noto, noto, done   # halt\r\n","count_first_n":"# Program 1: CountFirstN - sums 1 + 2 + ... + N for N = 5\r\nkopanyah t0, noto, 5      # t0 = N = 5\r\nkopanyah t1, noto, 0      # sum = 0\r\nkopanyah t2, noto, 1      # i = 1\r\nloop:  nyane t0, t2, done # if N < i, finish (taken once)\r\nkopanya t1, t1, t2        # sum = sum + i\r\nkopanyah t2, t2, 1        # i = i + 1\r\ntlola noto, loop          # jump back to loop (taken 5 times)\r\ndone:  lekana noto, noto, done  # halt\r\n","habeli_call":"# habeli_call - calls a procedure that doubles its argument (new in ISA v1.1)\r\n# Exercises tlola with a link register (hae = ra) and khutla (return), which no M1\r\n# sample program used. \"habeli\" = twice.\r\n# Expected final state: t0 = 21, t1 = 42, hae (p1) = 8, MEM[0] = 42\r\n# N = 6, 0 stalls, 4 flushed (tlola and khutla each taken) -> 14 cycles\r\nkopanyah t0, noto, 21     # argument = 21\r\ntlola hae, habeli         # call: hae = address of the next instruction (8)\r\nboloka t1, 0(noto)        # MEM[0] = result\r\nqeta: lekana noto, noto, qeta   # halt\r\nhabeli: kopanya t1, t0, t0      # t1 = 2 * t0\r\nkhutla noto, 0(hae)       # return to the address in hae\r\n"};
 const PIPELINE = (function () {
-// PROVISIONAL: field names and aluOp values to be confirmed against the frozen ISA.
+// Five-stage LIMO pipeline. The frozen ISA is documented in
+// docs/ISA-spec-v1.1-frozen.md; this module deliberately has no UI/assembler imports.
+
+const u32 = (value) => Number(value) >>> 0;
+const i32 = (value) => Number(value) | 0;
+const sext = (value, bits) => (value << (32 - bits)) >> (32 - bits);
+
 const bubbleCtrl = () => ({
   regWrite: false, aluSrc: false, aluOp: 'ADD', memRead: false,
   memWrite: false, wbSel: 'ALU', branch: false, jump: false, jalr: false,
 });
 
-const bubbleIFID  = () => ({ valid: false, pc: 0, instr: 0, pcPlus4: 0 });
-const bubbleIDEX  = () => ({ valid: false, pc: 0, instr: 0, pcPlus4: 0,
+const bubbleIFID = () => ({ valid: false, pc: 0, instr: 0, pcPlus4: 0 });
+const bubbleIDEX = () => ({ valid: false, pc: 0, instr: 0, pcPlus4: 0,
   rs1: 0, rs2: 0, rd: 0, rs1Val: 0, rs2Val: 0, imm: 0, ctrl: bubbleCtrl() });
 const bubbleEXMEM = () => ({ valid: false, pc: 0, instr: 0, pcPlus4: 0,
-  rd: 0, aluResult: 0, storeData: 0, ctrl: bubbleCtrl() });
+  rs1: 0, rs2: 0, rd: 0, aluResult: 0, storeData: 0, imm: 0,
+  haltCandidate: false, ctrl: bubbleCtrl() });
 const bubbleMEMWB = () => ({ valid: false, pc: 0, instr: 0, pcPlus4: 0,
-  rd: 0, aluResult: 0, memData: 0, ctrl: bubbleCtrl() });
+  rd: 0, aluResult: 0, memData: 0, haltCandidate: false, ctrl: bubbleCtrl() });
+
+const makeTrace = (cycle, narration = []) => ({ cycle, narration });
 
 function createState({ imem = new Uint32Array(1024), dmem = new Uint32Array(1024) } = {}) {
+  const regs = new Int32Array(32);
+  regs[2] = 0x1000; // lesupa: one word above the top of the byte-addressed data memory.
   return {
-    cycle: 0, pc: 0, halted: false,
-    regs: new Int32Array(32), imem, dmem,
+    cycle: 0, pc: 0, halted: false, error: null,
+    instructionCount: 0, stalls: 0, flushed: 0,
+    regs, imem, dmem: dmem.slice(),
     ifid: bubbleIFID(), idex: bubbleIDEX(), exmem: bubbleEXMEM(), memwb: bubbleMEMWB(),
+    trace: makeTrace(0, ['Reset: PC=0x00000000, p0=0, p2=0x00001000; pipeline empty.']),
   };
 }
 
-// Reset keeps the loaded program, clears everything else.
-const reset = (s) => createState({ imem: s.imem });
+// Reset preserves the loaded program but restores the architectural reset state.
+const reset = (state) => createState({ imem: state.imem });
 
-// SCAFFOLD ONLY (replaced in M3): moves metadata one stage per cycle.
-// Every stage reads the OLD state `s`; nothing in `s` is mutated.
-const carry = (prev, bubble) =>
-  prev.valid ? { ...bubble, valid: true, pc: prev.pc, instr: prev.instr, pcPlus4: prev.pcPlus4 } : bubble;
+function decode(instr, pc, regs) {
+  const opcode = instr & 0x7f;
+  const rd = (instr >>> 7) & 31;
+  const funct3 = (instr >>> 12) & 7;
+  const rs1 = (instr >>> 15) & 31;
+  const rs2 = (instr >>> 20) & 31;
+  const funct7 = instr >>> 25;
+  const base = {
+    valid: true, pc, instr: u32(instr), pcPlus4: u32(pc + 4),
+    rs1, rs2, rd, rs1Val: rs1 === 0 ? 0 : i32(regs[rs1]),
+    rs2Val: rs2 === 0 ? 0 : i32(regs[rs2]), imm: 0,
+    ctrl: { ...bubbleCtrl() },
+  };
+  const illegal = () => { throw new Error(`unsupported instruction 0x${u32(instr).toString(16).padStart(8, '0')}`); };
 
-function step(s) {
-  const instr = s.imem[s.pc >>> 2] ?? 0;
+  switch (opcode) {
+    case 0x33: // R-type
+      if (funct3 === 0 && funct7 === 0) base.ctrl.aluOp = 'ADD';
+      else if (funct3 === 0 && funct7 === 0x20) base.ctrl.aluOp = 'SUB';
+      else if (funct3 === 7 && funct7 === 0) base.ctrl.aluOp = 'AND';
+      else if (funct3 === 6 && funct7 === 0) base.ctrl.aluOp = 'OR';
+      else return illegal();
+      base.ctrl.regWrite = true;
+      break;
+    case 0x13: // I ALU
+      if (funct3 === 0) base.ctrl.aluOp = 'ADD';
+      else if (funct3 === 1 && funct7 === 0) base.ctrl.aluOp = 'SLL';
+      else return illegal();
+      base.imm = funct3 === 1 ? rs2 : sext(instr >>> 20, 12);
+      base.ctrl.aluSrc = true;
+      base.ctrl.regWrite = true;
+      break;
+    case 0x03: // tshela (lw)
+      if (funct3 !== 2) return illegal();
+      base.imm = sext(instr >>> 20, 12);
+      base.ctrl.aluSrc = true; base.ctrl.aluOp = 'ADD';
+      base.ctrl.memRead = true; base.ctrl.regWrite = true; base.ctrl.wbSel = 'MEM';
+      break;
+    case 0x23: { // boloka (sw)
+      if (funct3 !== 2) return illegal();
+      const raw = ((instr >>> 25) << 5) | ((instr >>> 7) & 31);
+      base.imm = sext(raw, 12);
+      base.ctrl.aluSrc = true; base.ctrl.aluOp = 'ADD'; base.ctrl.memWrite = true;
+      break;
+    }
+    case 0x63: { // lekana, haelekane, nyane
+      if (![0, 1, 4].includes(funct3)) return illegal();
+      const raw = (((instr >>> 31) & 1) << 12)
+        | (((instr >>> 7) & 1) << 11)
+        | (((instr >>> 25) & 0x3f) << 5)
+        | (((instr >>> 8) & 0xf) << 1);
+      base.imm = sext(raw, 13);
+      base.ctrl.branch = true;
+      base.ctrl.aluOp = funct3 === 4 ? 'SLT' : 'SUB';
+      base.ctrl.branchKind = funct3 === 0 ? 'EQ' : (funct3 === 1 ? 'NE' : 'LT');
+      base.ctrl.usesRs1 = true; base.ctrl.usesRs2 = true;
+      break;
+    }
+    case 0x6f: { // tlola (jal)
+      const raw = (((instr >>> 31) & 1) << 20)
+        | (((instr >>> 12) & 0xff) << 12)
+        | (((instr >>> 20) & 1) << 11)
+        | (((instr >>> 21) & 0x3ff) << 1);
+      base.imm = sext(raw, 21);
+      base.ctrl.jump = true; base.ctrl.regWrite = true; base.ctrl.wbSel = 'PC4';
+      base.ctrl.usesRs1 = false; base.ctrl.usesRs2 = false;
+      break;
+    }
+    case 0x67: // khutla (jalr)
+      if (funct3 !== 0) return illegal();
+      base.imm = sext(instr >>> 20, 12);
+      base.ctrl.jump = true; base.ctrl.jalr = true;
+      base.ctrl.regWrite = true; base.ctrl.wbSel = 'PC4';
+      base.ctrl.usesRs1 = true; base.ctrl.usesRs2 = false;
+      break;
+    default: return illegal();
+  }
+  // Opcode-aware source use is also used by load-use detection.
+  if (base.ctrl.usesRs1 === undefined) base.ctrl.usesRs1 = !base.ctrl.jump;
+  if (base.ctrl.usesRs2 === undefined) {
+    base.ctrl.usesRs2 = opcode === 0x33 || opcode === 0x23;
+  }
+  return base;
+}
+
+function writebackValue(slot) {
+  if (slot.ctrl.wbSel === 'MEM') return i32(slot.memData);
+  if (slot.ctrl.wbSel === 'PC4') return i32(slot.pcPlus4);
+  return i32(slot.aluResult);
+}
+
+function forwardedValue(reg, original, exmem, memwb, memValue) {
+  if (reg === 0) return 0;
+  if (exmem.valid && exmem.ctrl.regWrite && exmem.rd === reg && exmem.rd !== 0 && !exmem.ctrl.memRead) {
+    return i32(exmem.ctrl.wbSel === 'PC4' ? exmem.pcPlus4 : exmem.aluResult);
+  }
+  if (memwb.valid && memwb.ctrl.regWrite && memwb.rd === reg && memwb.rd !== 0) return memValue;
+  return i32(original);
+}
+
+function needsSource(slot, reg, which) {
+  if (!slot?.valid || reg === 0) return false;
+  return which === 'rs1' ? slot.ctrl.usesRs1 && slot.rs1 === reg : slot.ctrl.usesRs2 && slot.rs2 === reg;
+}
+
+function validTarget(target) {
+  return Number.isInteger(target) && target >= 0 && target <= 4092 && (target & 3) === 0;
+}
+
+function slotLabel(slot) {
+  return slot.valid ? `0x${u32(slot.pc).toString(16).padStart(8, '0')}` : 'bubble';
+}
+
+// One call is one rising edge: every stage reads the old state and commits together.
+function step(state) {
+  if (state.halted || state.error) return state;
+
+  const cycle = state.cycle + 1;
+  const regs = state.regs.slice();
+  const dmem = state.dmem.slice();
+  const narration = [];
+  const memwb = state.memwb;
+  const wbValue = memwb.valid && memwb.ctrl.regWrite ? writebackValue(memwb) : 0;
+  let instructionCount = state.instructionCount;
+  let halted = false;
+  let error = null;
+
+  // WB and MEM commit from the prior state. p0 is physically constant.
+  if (memwb.valid) {
+    instructionCount++;
+    if (memwb.ctrl.regWrite && memwb.rd !== 0) regs[memwb.rd] = wbValue;
+    if (memwb.haltCandidate) halted = true;
+  }
+  regs[0] = 0;
+  const nextMEMWB = bubbleMEMWB();
+  const oldEXMEM = state.exmem;
+  if (oldEXMEM.valid) {
+    Object.assign(nextMEMWB, {
+      valid: true, pc: oldEXMEM.pc, instr: oldEXMEM.instr, pcPlus4: oldEXMEM.pcPlus4,
+      rd: oldEXMEM.rd, aluResult: oldEXMEM.aluResult, ctrl: { ...oldEXMEM.ctrl },
+      haltCandidate: oldEXMEM.haltCandidate,
+    });
+    if (oldEXMEM.ctrl.memRead || oldEXMEM.ctrl.memWrite) {
+      const address = u32(oldEXMEM.aluResult);
+      if ((address & 3) !== 0) error = `load/store at 0x${address.toString(16).padStart(8, '0')} is not word-aligned`;
+      else if (address > 0xffc) error = `load/store address 0x${address.toString(16).padStart(8, '0')} is outside data memory`;
+      else if (oldEXMEM.ctrl.memRead) nextMEMWB.memData = dmem[address >>> 2];
+      else dmem[address >>> 2] = i32(oldEXMEM.storeData);
+      narration.push(oldEXMEM.ctrl.memRead
+        ? `MEM: read MEM[0x${address.toString(16).padStart(3, '0')}] = ${nextMEMWB.memData}.`
+        : `MEM: write MEM[0x${address.toString(16).padStart(3, '0')}] = ${oldEXMEM.storeData}.`);
+    }
+  }
+
+  const nextEXMEM = bubbleEXMEM();
+  let redirect = null;
+  const oldIDEX = state.idex;
+  if (oldIDEX.valid && !error) {
+    const a = forwardedValue(oldIDEX.rs1, oldIDEX.rs1Val, oldEXMEM, memwb, wbValue);
+    const b = forwardedValue(oldIDEX.rs2, oldIDEX.rs2Val, oldEXMEM, memwb, wbValue);
+    const operandB = oldIDEX.ctrl.aluSrc ? oldIDEX.imm : b;
+    let aluResult;
+    switch (oldIDEX.ctrl.aluOp) {
+      case 'ADD': aluResult = i32(a + operandB); break;
+      case 'SUB': aluResult = i32(a - operandB); break;
+      case 'AND': aluResult = i32(a & operandB); break;
+      case 'OR': aluResult = i32(a | operandB); break;
+      case 'SLL': aluResult = i32(a << (operandB & 31)); break;
+      case 'SLT': aluResult = a < b ? 1 : 0; break;
+      default: aluResult = 0;
+    }
+    const kind = oldIDEX.ctrl.branchKind;
+    const branchTaken = oldIDEX.ctrl.branch && (kind === 'EQ' ? a === b : kind === 'NE' ? a !== b : a < b);
+    if (branchTaken || oldIDEX.ctrl.jump) {
+      const target = oldIDEX.ctrl.jalr ? u32(a + oldIDEX.imm) & ~1 : u32(oldIDEX.pc + oldIDEX.imm);
+      if (!validTarget(target)) error = `control target 0x${target.toString(16).padStart(8, '0')} is unaligned or outside instruction memory`;
+      else redirect = { target, haltCandidate: oldIDEX.ctrl.branch && target === oldIDEX.pc };
+    }
+    Object.assign(nextEXMEM, {
+      valid: true, pc: oldIDEX.pc, instr: oldIDEX.instr, pcPlus4: oldIDEX.pcPlus4,
+      rs1: oldIDEX.rs1, rs2: oldIDEX.rs2, rd: oldIDEX.rd,
+      aluResult: oldIDEX.ctrl.jump ? oldIDEX.pcPlus4 : aluResult,
+      storeData: b, imm: oldIDEX.imm, ctrl: { ...oldIDEX.ctrl },
+      haltCandidate: Boolean(redirect?.haltCandidate),
+    });
+    narration.push(`EX: ${slotLabel(oldIDEX)} A=${a}, B=${operandB}, result=${oldIDEX.ctrl.jump ? oldIDEX.pcPlus4 : aluResult}${redirect ? `; redirect 0x${redirect.target.toString(16).padStart(8, '0')}` : ''}.`);
+  }
+
+  const nextIDEX = bubbleIDEX();
+  const nextIFID = bubbleIFID();
+  let pc = state.pc;
+  let stalls = state.stalls;
+  let flushed = state.flushed;
+  if (halted) {
+    narration.push('WB: self-branch halt committed; pipeline stopped.');
+  } else if (error) {
+    narration.push(`Stopped at cycle ${cycle}: ${error}.`);
+  } else if (redirect) {
+    pc = redirect.target;
+    if (!redirect.haltCandidate) flushed += 2;
+    narration.push(`Control hazard: flushed IF and ID; next PC=0x${pc.toString(16).padStart(8, '0')}.`);
+  } else {
+    let decoded = null;
+    if (state.ifid.valid) {
+      try { decoded = decode(state.ifid.instr, state.ifid.pc, regs); }
+      catch (cause) { error = `instruction at 0x${u32(state.ifid.pc).toString(16).padStart(8, '0')}: ${cause.message}`; }
+    }
+    if (error) {
+      narration.push(`Stopped: ${error}.`);
+    }
+    if (state.ifid.valid && oldIDEX.valid && oldIDEX.ctrl.memRead && oldIDEX.rd !== 0
+      && (needsSource(decoded, oldIDEX.rd, 'rs1') || needsSource(decoded, oldIDEX.rd, 'rs2'))) {
+      // Hold the fetch address and IF/ID; insert one empty ID/EX slot.
+      Object.assign(nextIFID, state.ifid);
+      stalls++;
+      narration.push(`Load-use stall: held ${slotLabel(state.ifid)} for one cycle.`);
+    } else if (decoded) {
+      Object.assign(nextIDEX, decoded);
+      narration.push(`ID: decoded ${slotLabel(decoded)} (${decoded.ctrl.aluOp}${decoded.ctrl.memRead ? ', load' : ''}${decoded.ctrl.memWrite ? ', store' : ''}${decoded.ctrl.branch ? ', branch' : ''}${decoded.ctrl.jump ? ', jump' : ''}).`);
+    }
+
+    const held = stalls > state.stalls;
+    if (error) {
+      // Stop before fetching younger work; older stages already committed this edge.
+    } else if (held) {
+      pc = state.pc;
+      Object.assign(nextIFID, state.ifid);
+    } else {
+      const fetchAddress = state.pc;
+      if ((fetchAddress & 3) !== 0 || fetchAddress > 4092) {
+        error = `fetch address 0x${u32(fetchAddress).toString(16).padStart(8, '0')} is outside instruction memory or unaligned`;
+      } else {
+        const word = state.imem[fetchAddress >>> 2] ?? 0;
+        Object.assign(nextIFID, { valid: true, pc: fetchAddress, instr: u32(word), pcPlus4: u32(fetchAddress + 4) });
+        pc = u32(fetchAddress + 4);
+        narration.push(`IF: fetched 0x${u32(word).toString(16).padStart(8, '0')} from 0x${fetchAddress.toString(16).padStart(8, '0')}.`);
+      }
+    }
+    if (state.ifid.valid) narration.push(`ID input: ${slotLabel(state.ifid)}.`);
+  }
+
+  // p0 is invariant even if callers supplied a malformed starting register array.
+  regs[0] = 0;
   return {
-    ...s,
-    cycle: s.cycle + 1,
-    pc: s.pc + 4,
-    ifid:  { valid: true, pc: s.pc, instr, pcPlus4: s.pc + 4 },
-    idex:  carry(s.ifid,  bubbleIDEX()),
-    exmem: carry(s.idex,  bubbleEXMEM()),
-    memwb: carry(s.exmem, bubbleMEMWB()),
+    ...state, cycle, pc, halted: halted || Boolean(error), error,
+    instructionCount, stalls, flushed, regs, dmem,
+    ifid: nextIFID, idex: nextIDEX, exmem: nextEXMEM, memwb: nextMEMWB,
+    trace: makeTrace(cycle, narration),
   };
 }
 
@@ -1084,9 +1330,10 @@ function renderCore() {
   }
 
   const status = $('core-status');
-  status.className = `core-message ${loaded ? 'ok' : ''}`;
+  status.className = `core-message ${coreState?.error ? 'error' : (loaded ? 'ok' : '')}`;
   status.textContent = !loaded ? 'Assemble a valid program to load the core state.'
-    : (coreState.halted ? 'Program halted.' : 'UI is reading the core state; use Step or Run to advance it.');
+    : (coreState.error ? `Run stopped: ${coreState.error}`
+      : (coreState.halted ? 'Program halted.' : 'UI is reading the core state; use Step or Run to advance it.'));
   renderPipelineRegisters();
   renderTrace();
 }

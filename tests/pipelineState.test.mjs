@@ -16,7 +16,7 @@ test('step does not mutate the previous state', () => {
 });
 
 test('an instruction advances exactly one stage per cycle', () => {
-  const imem = new Uint32Array(1024); imem[0] = 0x00500513;
+  const imem = new Uint32Array(1024).fill(0x00000013); imem[0] = 0x00500513;
   let s = createState({ imem });
   s = step(s); assert.equal(s.ifid.instr, 0x00500513); assert.equal(s.idex.valid, false);
   s = step(s); assert.equal(s.idex.instr, 0x00500513); assert.equal(s.exmem.valid, false);
@@ -30,7 +30,8 @@ test('a fetched all-zero word is valid, not a bubble', () => {
 });
 
 test('pc advances by 4 and cycle by 1', () => {
-  const s = step(step(createState()));
+  const imem = new Uint32Array(1024).fill(0x00000013);
+  const s = step(step(createState({ imem })));
   assert.equal(s.pc, 8); assert.equal(s.cycle, 2);
 });
 

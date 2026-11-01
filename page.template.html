@@ -384,9 +384,10 @@ function renderCore() {
   }
 
   const status = $('core-status');
-  status.className = `core-message ${loaded ? 'ok' : ''}`;
+  status.className = `core-message ${coreState?.error ? 'error' : (loaded ? 'ok' : '')}`;
   status.textContent = !loaded ? 'Assemble a valid program to load the core state.'
-    : (coreState.halted ? 'Program halted.' : 'UI is reading the core state; use Step or Run to advance it.');
+    : (coreState.error ? `Run stopped: ${coreState.error}`
+      : (coreState.halted ? 'Program halted.' : 'UI is reading the core state; use Step or Run to advance it.'));
   renderPipelineRegisters();
   renderTrace();
 }

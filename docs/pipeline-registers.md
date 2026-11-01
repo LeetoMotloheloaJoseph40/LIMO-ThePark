@@ -1,93 +1,33 @@
-# Pipeline registers and machine state (M2)
+# Pipeline registers and machine state (M3)
 
-Status: M2 design contract. Field names are PROVISIONAL until checked against the frozen ISA v1.1 (Moseme) and the ALU-control encoding (Katleho). Code: `src/core/pipelineState.mjs`. Tests: `tests/pipelineState.test.mjs` (`node --test`).
+Status: implemented. The normative field/API and cycle-stepping contract is in [`M3-core-state-contract.md`](M3-core-state-contract.md). Implementation: `src/core/pipelineState.mjs`; automated checks: `tests/pipelineState.test.mjs` and `tests/pipelineExecution.test.mjs` (`npm test`).
 
-## 1. Architectural vs microarchitectural state
-| Kind | Items | Why |
+## Architectural and microarchitectural state
+
+| Kind | State | Contract |
 |---|---|---|
-| Architectural | `pc`, `regs[0..31]` (p0 hard-wired 0), `imem` (4 KiB), `dmem` (4 KiB) | A program can name or observe them; every LIMO implementation must have them. |
-| Microarchitectural | `ifid`, `idex`, `exmem`, `memwb`, `ctrl` bits, `cycle`, `halted` | Implementation choices; a single-cycle or superscalar LIMO must run the same binaries, so the ISA must not specify them. |
+| Architectural | `pc`, `regs[0..31]`, `imem[0..1023]`, `dmem[0..1023]` | Separate 4 KiB word memories; p0 hard-wired to zero; reset p2 = 0x1000. |
+| Microarchitectural | `ifid`, `idex`, `exmem`, `memwb`, `cycle`, `halted`, counters, trace | Four boundary registers for the five stages IF, ID, EX, MEM, WB. |
 
-## 2. Why four registers for five stages
-Registers sit on the boundaries between stages: IF|ID, ID|EX, EX|MEM, MEM|WB. Five stages have four boundaries. The PC is architectural state in front of IF; the register file is written at the end of WB. Each register holds one instruction's data and control for one cycle, so five instructions can be in five stages at once.
+The UI consumes the core state directly. It may map a pipeline slot's byte `pc` to source text but must not duplicate execution state.
 
-## 3. Bubble and validity rule
-Every pipeline register has `valid: boolean`. `valid = false` is an empty slot (bubble); its other fields are zeroed and ignored, and its control signals are all false, so it cannot write registers or memory. A bubble is NEVER recognised by `instr === 0`: a fetched all-zero word is a valid slot. A NOP (`kopanyah noto, noto, 0`, 0x00000013) is a real instruction and counts in N; a bubble counts as a stall or a flush.
+## Pipeline register fields
 
-## 4. Data dictionary
-Types: `bool`; `u32` unsigned 32-bit; `i32` signed 32-bit; `reg` 0..31; `ctrl` control record (section 5). "Scaffold" = populated by the current `step()` (Y) or only present with its reset value until M3 (N).
+Every slot has `valid`. A bubble has `valid: false` and inert controls. A valid all-zero instruction word is not a bubble; it is decoded and rejected as an unsupported instruction. Values not used by a bubble must be ignored.
 
-### IF/ID (IF -> ID)
-| Field | Type | Kind | Meaning | Reset | Scaffold |
-|---|---|---|---|---|---|
-| valid | bool | control | slot holds a fetched instruction | false | Y |
-| pc | u32 | data | address of the fetched instruction | 0 | Y |
-| instr | u32 | data | raw instruction word | 0 | Y |
-| pcPlus4 | u32 | data | pc + 4 (sequential PC, link value) | 0 | Y |
-
-### ID/EX (ID -> EX)
-| Field | Type | Kind | Meaning | Reset | Scaffold |
-|---|---|---|---|---|---|
-| valid | bool | control | slot holds an instruction | false | Y |
-| pc, instr, pcPlus4 | u32 | data | carried from IF/ID | 0 | Y |
-| rs1, rs2 | reg | data | source register numbers (for M4 forwarding comparators) | 0 | N |
-| rd | reg | data | destination register number | 0 | N |
-| rs1Val, rs2Val | i32 | data | values read from the register file | 0 | N |
-| imm | i32 | data | sign-extended immediate | 0 | N |
-| ctrl | ctrl | control | control signals decoded in ID | all false | N |
-
-### EX/MEM (EX -> MEM)
-| Field | Type | Kind | Meaning | Reset | Scaffold |
-|---|---|---|---|---|---|
-| valid | bool | control | slot holds an instruction | false | Y |
-| pc, instr, pcPlus4 | u32 | data | carried forward | 0 | Y |
-| rd | reg | data | destination register number | 0 | N |
-| aluResult | i32 | data | ALU output; memory address for load/store | 0 | N |
-| storeData | i32 | data | value to store (rs2 value) | 0 | N |
-| ctrl | ctrl | control | carried control record | all false | N |
-
-### MEM/WB (MEM -> WB)
-| Field | Type | Kind | Meaning | Reset | Scaffold |
-|---|---|---|---|---|---|
-| valid | bool | control | slot holds an instruction | false | Y |
-| pc, instr, pcPlus4 | u32 | data | carried forward | 0 | Y |
-| rd | reg | data | destination register number | 0 | N |
-| aluResult | i32 | data | candidate write-back value (ALU) | 0 | N |
-| memData | i32 | data | candidate write-back value (loaded word) | 0 | N |
-| ctrl | ctrl | control | regWrite and wbSel used in WB | all false | N |
-
-Both write-back candidates are carried and the wbSel mux runs in WB, so the visualiser can show the mux.
-
-## 5. Control record `ctrl`
-| Signal | Meaning | Consumed in |
+| Register | Fields | Meaning |
 |---|---|---|
-| regWrite | write a result into rd | WB |
-| aluSrc | ALU second operand: immediate (true) or rs2 (false) | EX |
-| aluOp | ALU operation (PROVISIONAL: ADD, SUB, AND, OR, SLL, SLT) | EX |
-| memRead | read data memory (loads) | MEM |
-| memWrite | write data memory (stores) | MEM |
-| wbSel | write-back source: 'ALU', 'MEM' or 'PC4' (PC4 for tlola and khutla) | WB |
-| branch | conditional branch; taken if the compare holds | EX |
-| jump, jalr | unconditional jump; jalr target = rs1 + imm | EX |
+| IF/ID | `pc`, `instr`, `pcPlus4` | Fetched instruction and sequential/link address. |
+| ID/EX | `pc`, `instr`, `pcPlus4`, `rs1`, `rs2`, `rd`, `rs1Val`, `rs2Val`, `imm`, `ctrl` | Decoded operands, immediate and controls. |
+| EX/MEM | `pc`, `instr`, `pcPlus4`, `rs1`, `rs2`, `rd`, `aluResult`, `storeData`, `imm`, `haltCandidate`, `ctrl` | ALU/address result, forwarded store value and controls for MEM/WB. |
+| MEM/WB | `pc`, `instr`, `pcPlus4`, `rd`, `aluResult`, `memData`, `haltCandidate`, `ctrl` | Candidate values and controls for architectural write-back. |
 
-The UI shows MemtoReg as derived (wbSel === 'MEM'). PCSrc is a combinational output of EX, not a pipeline field.
+`ctrl` includes `regWrite`, `aluSrc`, `aluOp`, `memRead`, `memWrite`, `wbSel` (`ALU`, `MEM`, `PC4`), `branch`, `jump`, `jalr`, plus decoded source-use and branch-kind fields.
 
-## 6. Clock-cycle semantics
-`step(state)` returns a new state; the old state is never mutated.
-1. Read the current PC and the four pipeline registers.
-2. Compute every stage's output from the OLD state only (combinational).
-3. Build the next values of the four registers and the PC.
-4. Commit all of them together; cycle = cycle + 1.
-So an instruction moves exactly one stage per cycle (test: "advances exactly one stage per cycle").
-Branches and jumps resolve in EX with predict-not-taken: the new IF/ID and ID/EX become bubbles and the PC takes the target (pending team vote #26). Branch outcome and target are per-cycle `trace` values for the UI, not pipeline fields.
-Register file (M1 timing): written in the first half-cycle, read in the second, so ID sees the value WB writes in the same cycle.
+## Clock and hazards
 
-## 7. Reset and halt
-`createState()`: pc = 0, cycle = 0, halted = false, regs and dmem all 0, all four pipeline registers are bubbles. `reset(state)` keeps the loaded `imem`.
-Halt is the M1 convention: a branch to itself (`lekana noto, noto, <own label>`). Detection of `halted` is added in M3.
+`step(state)` is an immutable one-cycle transition: every stage reads the old state, then PC, pipeline registers, register file and data memory are returned together in the next state. WB writes are visible to ID in the same cycle. Forwarding selects EX/MEM before MEM/WB and ignores p0. An opcode-aware load-use dependency holds PC and IF/ID for one cycle and inserts a bubble. EX resolves taken branches/jumps; predict-not-taken control flow flushes the two younger slots and redirects PC. The halt sentinel is a self-branch and is recognized when it reaches WB.
 
-## 8. Known limitations and deferred work
-- M2 `step()` only fetches and moves instruction metadata; decode, execute, memory and write-back arrive in M3.
-- Forwarding, load-use stall and branch flush arrive in M4.
-- `regs` and `dmem` are shared by reference between states in the scaffold; M3 must copy on write.
-- `ctrl` is carried whole through every register for simplicity; M3 may trim it per stage.
+`trace` exposes per-cycle narration. `instructionCount`, `stalls`, and `flushed` support cycle-by-cycle inspection and the frozen sample-program counts. Error stops provide `error` plus `halted: true`; the UI must display the error text instead of a normal-halt message.
+
+See [`M3-core-state-contract.md`](M3-core-state-contract.md) for the complete state shape, reset and API details.
