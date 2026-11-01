@@ -43,6 +43,30 @@ code,.mono{font-family:ui-monospace,Consolas,Menlo,monospace}
 .stages{display:grid;grid-template-columns:repeat(5,minmax(70px,1fr));gap:8px}
 .stage{border:1px solid var(--line);border-radius:6px;padding:10px;text-align:center;background:var(--bg)}
 .stage strong{display:block}.stage small{color:var(--muted)}
+.stage.active{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.stage .stage-value{display:block;margin-top:6px;font:12px/1.35 ui-monospace,Consolas,Menlo,monospace;overflow-wrap:anywhere}
+.sim-controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0 4px}
+.sim-controls button:disabled{opacity:.5;cursor:not-allowed}
+.sim-meta{font:13px/1.5 ui-monospace,Consolas,Menlo,monospace;color:var(--muted)}
+.state-scroll{max-height:280px;overflow:auto;border:1px solid var(--line);border-radius:6px}
+.state-table{width:100%;min-width:0;font-size:12px}
+.state-table th,.state-table td{padding:4px 6px;white-space:nowrap}
+.state-table .changed{font-weight:700}
+.state-table .changed .changed-mark{color:var(--accent);font-weight:800}
+.pipeline-registers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.pipeline-register{border:1px solid var(--line);border-radius:6px;padding:8px;min-width:0}
+.pipeline-register h3{font-size:.85rem;margin:0 0 4px}
+.pipeline-register pre{white-space:pre-wrap;overflow-wrap:anywhere;margin:0;color:var(--muted);font:11px/1.4 ui-monospace,Consolas,Menlo,monospace}
+.core-message{min-height:1.5em;margin:6px 0;color:var(--muted)}
+.core-message.error{color:var(--err)}
+.core-message.ok{color:var(--ok)}
+.register-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px 8px}
+.register-item{display:flex;justify-content:space-between;gap:6px;border-bottom:1px solid var(--line);padding:3px 0;font:11px/1.4 ui-monospace,Consolas,Menlo,monospace}
+.register-item.changed{font-weight:700}
+.register-name{color:var(--muted);white-space:nowrap}
+.register-value{white-space:nowrap;text-align:right}
+.register-value .changed-mark{color:var(--accent)}
+.memory-summary{font-size:12px;color:var(--muted);margin:0 0 6px}
 .section{margin:16px 0}
 @media(max-width:800px){.workspace{grid-template-columns:1fr}.editor textarea{min-height:220px}}
 @media(max-width:520px){main{padding:12px}.state-grid{grid-template-columns:1fr}.stages{grid-template-columns:repeat(2,1fr)}.stages .stage:last-child{grid-column:1/-1}}
@@ -56,13 +80,20 @@ code,.mono{font-family:ui-monospace,Consolas,Menlo,monospace}
 <section class="section card" aria-labelledby="pipeline-heading">
   <h2 id="pipeline-heading" class="panel-title">Five-stage pipeline</h2>
   <div class="stages" aria-label="Pipeline stage layout">
-    <div class="stage"><strong>IF</strong><small>Instruction Fetch</small></div>
-    <div class="stage"><strong>ID</strong><small>Decode</small></div>
-    <div class="stage"><strong>EX</strong><small>Execute</small></div>
-    <div class="stage"><strong>MEM</strong><small>Memory</small></div>
-    <div class="stage"><strong>WB</strong><small>Write Back</small></div>
+    <div class="stage" id="stage-if"><strong>IF</strong><small>Instruction Fetch</small><span class="stage-value" id="stage-if-value">Bubble</span></div>
+    <div class="stage" id="stage-id"><strong>ID</strong><small>Decode</small><span class="stage-value" id="stage-id-value">Bubble</span></div>
+    <div class="stage" id="stage-ex"><strong>EX</strong><small>Execute</small><span class="stage-value" id="stage-ex-value">Bubble</span></div>
+    <div class="stage" id="stage-mem"><strong>MEM</strong><small>Memory</small><span class="stage-value" id="stage-mem-value">Bubble</span></div>
+    <div class="stage" id="stage-wb"><strong>WB</strong><small>Write Back</small><span class="stage-value" id="stage-wb-value">Bubble</span></div>
   </div>
-  <p class="hint">Pipeline execution controls and live values will connect to the processor core.</p>
+  <div class="sim-controls" aria-label="Pipeline controls">
+    <button id="step" type="button" disabled>Step</button>
+    <button id="run" type="button" disabled>Run</button>
+    <button id="reset" type="button" disabled>Reset</button>
+    <span class="sim-meta" id="core-cycle">Cycle 0</span>
+    <span class="sim-meta" id="core-pc">PC 0x00000000</span>
+  </div>
+  <p id="core-status" class="core-message" role="status" aria-live="polite">Assemble a program to load the pipeline state.</p>
 </section>
 
 <div class="workspace">
@@ -99,11 +130,11 @@ code,.mono{font-family:ui-monospace,Consolas,Menlo,monospace}
 
 <aside class="stack" aria-label="Machine state and narration">
   <div class="state-grid">
-    <section class="card" aria-labelledby="register-heading"><h2 id="register-heading" class="panel-title">Registers</h2><div class="placeholder">Register values will appear here when the pipeline core is connected.</div></section>
-    <section class="card" aria-labelledby="memory-heading"><h2 id="memory-heading" class="panel-title">Memory</h2><div class="placeholder">Data memory addresses and values will appear here.</div></section>
+    <section class="card" aria-labelledby="register-heading"><h2 id="register-heading" class="panel-title">Registers</h2><div id="registers" class="register-grid" aria-live="polite"></div></section>
+    <section class="card" aria-labelledby="memory-heading"><h2 id="memory-heading" class="panel-title">Data memory</h2><p class="memory-summary">Byte addresses 0x000-0xFFC; values are words.</p><div class="state-scroll"><table class="state-table"><thead><tr><th>Address</th><th>Signed</th><th>Hex</th></tr></thead><tbody id="memory"></tbody></table></div></section>
   </div>
-  <section class="card" aria-labelledby="narration-heading"><h2 id="narration-heading" class="panel-title">Cycle narration</h2><div class="placeholder">Stage-by-stage explanations will appear here as the program runs.</div></section>
-  <section class="card" aria-labelledby="register-model-heading"><h2 id="register-model-heading" class="panel-title">Pipeline registers</h2><div class="placeholder">IF/ID · ID/EX · EX/MEM · MEM/WB live contents will appear here.</div></section>
+  <section class="card" aria-labelledby="narration-heading"><h2 id="narration-heading" class="panel-title">Cycle trace</h2><ul id="narration" aria-live="polite"><li class="hint">Step the core to show its per-cycle trace.</li></ul></section>
+  <section class="card" aria-labelledby="register-model-heading"><h2 id="register-model-heading" class="panel-title">Pipeline registers</h2><div id="pipeline-registers" class="pipeline-registers" aria-live="polite"></div></section>
 </aside>
 </div>
 </main>
@@ -766,6 +797,52 @@ function assemble(sourceText) {
 return { assemble };
 })();
 const EXAMPLES = {"CountFirstN":"# CountFirstN - sums 1 + 2 + ... + N for N = 5 (M1 sample program 1)\r\n# Expected final state: t0 = 5, t1 = 15, t2 = 6\r\n# N = 25 instructions, 0 stalls, 12 flushed (6 taken transfers x 2) -> 41 cycles\r\nkopanyah t0, noto, 5      # t0 = N = 5\r\nkopanyah t1, noto, 0      # sum = 0\r\nkopanyah t2, noto, 1      # i = 1\r\nloop: nyane t0, t2, done  # if N < i, finish (taken once)\r\nkopanya t1, t1, t2        # sum = sum + i\r\nkopanyah t2, t2, 1        # i = i + 1\r\ntlola noto, loop          # jump back to loop (taken 5 times)\r\ndone: lekana noto, noto, done   # halt (branch to itself)\r\n","alu_mix":"# alu_mix - one use of every arithmetic and logic instruction, no hazards (new in ISA v1.1)\r\n# Covers tlosa, kapa and chetse, which no M1 sample program used.\r\n# Expected final state: t0 = 12, t1 = 10, t2 = 2, t3 = 14, t4 = 8, t5 = 96,\r\n#   t6 = 0xFFFFFFFE (-2 as a signed number)\r\n# N = 8, 0 stalls, 0 flushed -> 12 cycles\r\nkopanyah t0, noto, 12     # t0 = 12 (0b1100)\r\nkopanyah t1, noto, 10     # t1 = 10 (0b1010)\r\ntlosa t2, t0, t1          # t2 = 12 - 10 = 2 (RAW on t1: forwarded)\r\nkapa t3, t0, t1           # t3 = 12 OR 10 = 14\r\nle t4, t0, t1             # t4 = 12 AND 10 = 8\r\nchetse t5, t0, 3          # t5 = 12 << 3 = 96\r\ntlosa t6, t1, t0          # t6 = 10 - 12 = -2\r\nqeta: lekana noto, noto, qeta   # halt\r\n","compare_2_int":"# compare_2_int - stores A and B, loads them back, keeps the larger at MEM[16]\r\n# (M1 sample program 2; v1.1 fixes the halt label: qetile branched to \"qetiled\")\r\n#\r\n# As written (A = 25, B = 17):\r\n#   MEM[0] = 25, MEM[4] = 17, MEM[16] = 25; t0 = 17, n0 = 25, n1 = 17, n2 = 25\r\n#   N = 11, 1 stall, 2 flushed -> 18 cycles\r\n# Variant: change line \"kopanyah t0, noto, 17\" to 40 (nyane is then taken):\r\n#   MEM[4] = MEM[16] = 40; t0 = n1 = n2 = 40; n0 = 25\r\n#   N = 10, 1 stall, 2 flushed -> 17 cycles\r\nkopanyah t0, noto, 25     # t0 = 25 (value A)\r\nboloka t0, 0(noto)        # MEM[0] = A (RAW on t0: forwarded)\r\nkopanyah t0, noto, 17     # t0 = 17 (value B)\r\nboloka t0, 4(noto)        # MEM[4] = B\r\ntshela n0, 0(noto)        # n0 = A\r\ntshela n1, 4(noto)        # n1 = B\r\nnyane n0, n1, nka_b       # if A < B, go to nka_b (load-use: 1 stall)\r\nkopanya n2, n0, noto      # else result = A (a register copy)\r\ntlola noto, qeta          # skip the B case (taken)\r\nnka_b: kopanya n2, n1, noto     # result = B\r\nqeta: boloka n2, 16(noto)       # MEM[16] = larger value\r\nqetile: lekana noto, noto, qetile   # halt\r\n","count_even":"# count_even - counts the even numbers in a five-element array (M1 sample program 3)\r\n# No multiply, so a[index]'s address is built by repeated addition; no andi, so the\r\n# parity mask lives in t7.\r\n# Expected final state: MEM[0..16] = 4, 7, 10, 3, 8; t0 = 0, t1 = 3 (the count),\r\n#   t2 = 5, t3 = 5, t4 = 4, t5 = 16, t6 = 0, t7 = 1, n0 = 8\r\n# N = 111, 5 stalls (one per element), 46 flushed (23 taken transfers x 2) -> 166 cycles\r\nkopanyah n0, noto, 4      # initialise the array a[0..4] = 4, 7, 10, 3, 8\r\nboloka n0, 0(noto)        # a[0] = 4\r\nkopanyah n0, noto, 7\r\nboloka n0, 4(noto)        # a[1] = 7\r\nkopanyah n0, noto, 10\r\nboloka n0, 8(noto)        # a[2] = 10\r\nkopanyah n0, noto, 3\r\nboloka n0, 12(noto)       # a[3] = 3\r\nkopanyah n0, noto, 8\r\nboloka n0, 16(noto)       # a[4] = 8\r\nkopanyah t0, noto, 0      # base address = 0\r\nkopanyah t1, noto, 0      # count = 0\r\nkopanyah t2, noto, 0      # index = 0\r\nkopanyah t3, noto, 5      # array length = 5\r\nkopanyah t4, noto, 4      # element size = 4\r\nkopanyah t7, noto, 1      # mask = 1 (LIMO has no andi)\r\nloop: lekana t2, t3, done # if index == length, finish\r\nkopanyah t5, noto, 0      # offset = 0\r\nkopanyah t6, noto, 0      # counter = 0\r\noffset_loop: lekana t6, t2, check   # if counter == index, offset is ready\r\nkopanya t5, t5, t4        # offset = offset + 4 (no multiply)\r\nkopanyah t6, t6, 1        # counter++\r\ntlola noto, offset_loop   # repeat\r\ncheck: kopanya t5, t0, t5 # address = base + offset\r\ntshela t6, 0(t5)          # load a[index] (RAW on t5: forwarded)\r\nle t6, t6, t7             # t6 = a[index] AND 1 (load-use: 1 stall)\r\nhaelekane t6, noto, skip  # odd: do not count it (RAW on t6: forwarded)\r\nkopanyah t1, t1, 1        # even: count++\r\nskip: kopanyah t2, t2, 1  # index++\r\ntlola noto, loop          # next element\r\ndone: lekana noto, noto, done   # halt\r\n","count_first_n":"# Program 1: CountFirstN - sums 1 + 2 + ... + N for N = 5\r\nkopanyah t0, noto, 5      # t0 = N = 5\r\nkopanyah t1, noto, 0      # sum = 0\r\nkopanyah t2, noto, 1      # i = 1\r\nloop:  nyane t0, t2, done # if N < i, finish (taken once)\r\nkopanya t1, t1, t2        # sum = sum + i\r\nkopanyah t2, t2, 1        # i = i + 1\r\ntlola noto, loop          # jump back to loop (taken 5 times)\r\ndone:  lekana noto, noto, done  # halt\r\n","habeli_call":"# habeli_call - calls a procedure that doubles its argument (new in ISA v1.1)\r\n# Exercises tlola with a link register (hae = ra) and khutla (return), which no M1\r\n# sample program used. \"habeli\" = twice.\r\n# Expected final state: t0 = 21, t1 = 42, hae (p1) = 8, MEM[0] = 42\r\n# N = 6, 0 stalls, 4 flushed (tlola and khutla each taken) -> 14 cycles\r\nkopanyah t0, noto, 21     # argument = 21\r\ntlola hae, habeli         # call: hae = address of the next instruction (8)\r\nboloka t1, 0(noto)        # MEM[0] = result\r\nqeta: lekana noto, noto, qeta   # halt\r\nhabeli: kopanya t1, t0, t0      # t1 = 2 * t0\r\nkhutla noto, 0(hae)       # return to the address in hae\r\n"};
+const PIPELINE = (function () {
+// PROVISIONAL: field names and aluOp values to be confirmed against the frozen ISA.
+const bubbleCtrl = () => ({
+  regWrite: false, aluSrc: false, aluOp: 'ADD', memRead: false,
+  memWrite: false, wbSel: 'ALU', branch: false, jump: false, jalr: false,
+});
+
+const bubbleIFID  = () => ({ valid: false, pc: 0, instr: 0, pcPlus4: 0 });
+const bubbleIDEX  = () => ({ valid: false, pc: 0, instr: 0, pcPlus4: 0,
+  rs1: 0, rs2: 0, rd: 0, rs1Val: 0, rs2Val: 0, imm: 0, ctrl: bubbleCtrl() });
+const bubbleEXMEM = () => ({ valid: false, pc: 0, instr: 0, pcPlus4: 0,
+  rd: 0, aluResult: 0, storeData: 0, ctrl: bubbleCtrl() });
+const bubbleMEMWB = () => ({ valid: false, pc: 0, instr: 0, pcPlus4: 0,
+  rd: 0, aluResult: 0, memData: 0, ctrl: bubbleCtrl() });
+
+function createState({ imem = new Uint32Array(1024), dmem = new Uint32Array(1024) } = {}) {
+  return {
+    cycle: 0, pc: 0, halted: false,
+    regs: new Int32Array(32), imem, dmem,
+    ifid: bubbleIFID(), idex: bubbleIDEX(), exmem: bubbleEXMEM(), memwb: bubbleMEMWB(),
+  };
+}
+
+// Reset keeps the loaded program, clears everything else.
+const reset = (s) => createState({ imem: s.imem });
+
+// SCAFFOLD ONLY (replaced in M3): moves metadata one stage per cycle.
+// Every stage reads the OLD state `s`; nothing in `s` is mutated.
+const carry = (prev, bubble) =>
+  prev.valid ? { ...bubble, valid: true, pc: prev.pc, instr: prev.instr, pcPlus4: prev.pcPlus4 } : bubble;
+
+function step(s) {
+  const instr = s.imem[s.pc >>> 2] ?? 0;
+  return {
+    ...s,
+    cycle: s.cycle + 1,
+    pc: s.pc + 4,
+    ifid:  { valid: true, pc: s.pc, instr, pcPlus4: s.pc + 4 },
+    idex:  carry(s.ifid,  bubbleIDEX()),
+    exmem: carry(s.idex,  bubbleEXMEM()),
+    memwb: carry(s.exmem, bubbleMEMWB()),
+  };
+}
+
+return { createState, reset, step };
+})();
 
 const $ = (id) => document.getElementById(id);
 
@@ -840,7 +917,259 @@ function render(result) {
     : names.map((n) => n + ' = ' + hex4(result.labels[n])).join('    ');
 }
 
-function run() { render(LIMO.assemble($('src').value)); }
+let assemblyResult = null;
+let coreState = null;
+let previousSnapshot = null;
+let runTimer = null;
+let runCycles = 0;
+const RUN_INTERVAL_MS = 180;
+const RUN_CYCLE_LIMIT = 5000;
+
+function u32Hex(value, digits = 8) {
+  return '0x' + (Number(value) >>> 0).toString(16).toUpperCase().padStart(digits, '0');
+}
+
+function registerName(index) {
+  if (index === 0) return 'p0 noto zero';
+  if (index === 1) return 'p1 hae ra';
+  if (index === 2) return 'p2 lesupa sp';
+  if (index >= 3 && index <= 4) return `p${index} nakoana n${index + 4}`;
+  if (index >= 5 && index <= 7) return `p${index} nakoana n${index - 5}`;
+  if (index >= 8 && index <= 9) return `p${index} bolokuoe b${index - 8}`;
+  if (index >= 10 && index <= 17) return `p${index} taba le pusetso t${index - 10}`;
+  if (index >= 18 && index <= 27) return `p${index} bolokuoe b${index - 16}`;
+  return `p${index} nakoana n${index - 25}`;
+}
+
+function sourceAt(pc) {
+  return assemblyResult?.lines?.find((line) => line.address === (Number(pc) >>> 0));
+}
+
+function makeSnapshot(state) {
+  if (!state) return null;
+  return {
+    regs: state.regs ? Array.from(state.regs) : [],
+    dmem: state.dmem ? Array.from(state.dmem) : [],
+  };
+}
+
+function buildRegisterView() {
+  const root = $('registers');
+  root.textContent = '';
+  for (let index = 0; index < 32; index++) {
+    const row = el('div', 'register-item');
+    row.id = `register-row-${index}`;
+    row.appendChild(el('span', 'register-name', registerName(index)));
+    row.appendChild(el('span', 'register-value', '0'));
+    root.appendChild(row);
+  }
+}
+
+function buildMemoryView() {
+  const root = $('memory');
+  root.textContent = '';
+  for (let index = 0; index < 1024; index++) {
+    const row = document.createElement('tr');
+    row.id = `memory-row-${index}`;
+    row.appendChild(el('td', 'mono', u32Hex(index * 4, 3)));
+    row.appendChild(el('td', 'mono', '0'));
+    row.appendChild(el('td', 'mono', u32Hex(0)));
+    root.appendChild(row);
+  }
+}
+
+function slotText(slot) {
+  if (!slot?.valid) return 'Bubble';
+  const line = sourceAt(slot.pc);
+  const instruction = line ? line.source.trim() : u32Hex(slot.instr);
+  return `${u32Hex(slot.pc, 3)}  ${instruction}  ${u32Hex(slot.instr)}`;
+}
+
+function setStage(name, text, active) {
+  const stage = $(`stage-${name}`);
+  stage.classList.toggle('active', Boolean(active));
+  $(`stage-${name}-value`).textContent = text;
+}
+
+function registerSummary(name, value) {
+  const signed = Number(value) | 0;
+  return `${name}=${signed} (${u32Hex(signed)})`;
+}
+
+function renderPipelineRegisters() {
+  const root = $('pipeline-registers');
+  root.textContent = '';
+  if (!coreState) {
+    root.appendChild(el('p', 'hint', 'No valid assembled program is loaded.'));
+    return;
+  }
+  const entries = [
+    ['IF/ID', coreState.ifid], ['ID/EX', coreState.idex],
+    ['EX/MEM', coreState.exmem], ['MEM/WB', coreState.memwb],
+  ];
+  for (const [name, slot] of entries) {
+    const card = el('section', 'pipeline-register');
+    card.appendChild(el('h3', '', name));
+    if (!slot?.valid) {
+      card.appendChild(el('pre', '', 'Bubble'));
+    } else {
+      const lines = [
+        `pc=${u32Hex(slot.pc)} instr=${u32Hex(slot.instr)}`,
+        `pc+4=${u32Hex(slot.pcPlus4)}`,
+      ];
+      for (const key of ['rs1', 'rs2', 'rd', 'imm', 'rs1Val', 'rs2Val', 'aluResult', 'storeData', 'memData']) {
+        if (slot[key] !== undefined) lines.push(`${key}=${slot[key]}`);
+      }
+      if (slot.ctrl) lines.push(`ctrl=${JSON.stringify(slot.ctrl)}`);
+      const source = sourceAt(slot.pc);
+      if (source) lines.push(`source=${source.source.trim()}`);
+      card.appendChild(el('pre', '', lines.join('\n')));
+    }
+    root.appendChild(card);
+  }
+}
+
+function renderTrace() {
+  const root = $('narration');
+  root.textContent = '';
+  const trace = coreState?.trace;
+  const narration = trace?.narration;
+  const lines = Array.isArray(narration) ? narration : (typeof narration === 'string' ? narration.split('\n') : []);
+  if (!lines.length) {
+    root.appendChild(el('li', 'hint', coreState ? 'The core did not provide narration for this cycle.' : 'Assemble a valid program to begin.'));
+    return;
+  }
+  for (const line of lines) root.appendChild(el('li', '', String(line)));
+}
+
+function renderCore() {
+  const loaded = Boolean(coreState && assemblyResult?.ok);
+  $('step').disabled = !loaded || Boolean(coreState?.halted) || Boolean(runTimer);
+  $('run').disabled = !loaded || Boolean(coreState?.halted);
+  $('reset').disabled = !loaded;
+  $('core-cycle').textContent = `Cycle ${coreState?.cycle ?? 0}`;
+  $('core-pc').textContent = `PC ${u32Hex(coreState?.pc ?? 0)}`;
+
+  if (!loaded) {
+    for (const stage of ['if', 'id', 'ex', 'mem', 'wb']) setStage(stage, 'Bubble', false);
+  } else {
+    const fetchPc = Number(coreState.pc) >>> 0;
+    const fetchLine = sourceAt(fetchPc);
+    setStage('if', fetchLine ? `${u32Hex(fetchPc, 3)}  ${fetchLine.source.trim()}` : (coreState.halted ? 'Halted' : 'Program end'), Boolean(fetchLine));
+    setStage('id', slotText(coreState.ifid), Boolean(coreState.ifid?.valid));
+    setStage('ex', slotText(coreState.idex), Boolean(coreState.idex?.valid));
+    setStage('mem', slotText(coreState.exmem), Boolean(coreState.exmem?.valid));
+    setStage('wb', slotText(coreState.memwb), Boolean(coreState.memwb?.valid));
+  }
+
+  for (let index = 0; index < 32; index++) {
+    const value = Number(coreState?.regs?.[index] ?? 0) | 0;
+    const prior = previousSnapshot?.regs?.[index];
+    const changed = prior !== undefined && prior !== value;
+    const row = $(`register-row-${index}`);
+    row.classList.toggle('changed', changed);
+    const valueCell = row.lastElementChild;
+    valueCell.textContent = `${changed ? '* ' : ''}${value}`;
+    valueCell.title = u32Hex(value);
+  }
+
+  for (let index = 0; index < 1024; index++) {
+    const value = Number(coreState?.dmem?.[index] ?? 0) >>> 0;
+    const prior = previousSnapshot?.dmem?.[index];
+    const changed = prior !== undefined && prior !== value;
+    const row = $(`memory-row-${index}`);
+    row.classList.toggle('changed', changed);
+    row.cells[1].textContent = `${changed ? '* ' : ''}${value | 0}`;
+    row.cells[2].textContent = u32Hex(value);
+  }
+
+  const status = $('core-status');
+  status.className = `core-message ${loaded ? 'ok' : ''}`;
+  status.textContent = !loaded ? 'Assemble a valid program to load the core state.'
+    : (coreState.halted ? 'Program halted.' : 'UI is reading the core state; use Step or Run to advance it.');
+  renderPipelineRegisters();
+  renderTrace();
+}
+
+function stopRun() {
+  if (runTimer) clearTimeout(runTimer);
+  runTimer = null;
+  $('run').textContent = 'Run';
+  renderCore();
+}
+
+function advanceOneCycle() {
+  if (!coreState || coreState.halted) return false;
+  try {
+    previousSnapshot = makeSnapshot(coreState);
+    coreState = PIPELINE.step(coreState);
+    renderCore();
+    return true;
+  } catch (error) {
+    stopRun();
+    const status = $('core-status');
+    status.className = 'core-message error';
+    status.textContent = `Core step failed: ${error.message}`;
+    return false;
+  }
+}
+
+function runTick() {
+  if (!runTimer || !coreState) return;
+  if (coreState.halted) {
+    stopRun();
+    return;
+  }
+  if (runCycles >= RUN_CYCLE_LIMIT) {
+    stopRun();
+    $('core-status').textContent = `Paused at the ${RUN_CYCLE_LIMIT}-cycle safety limit.`;
+    return;
+  }
+  runCycles++;
+  if (!advanceOneCycle() || coreState.halted) {
+    stopRun();
+    return;
+  }
+  runTimer = setTimeout(runTick, RUN_INTERVAL_MS);
+}
+
+function assembleAndLoad() {
+  stopRun();
+  assemblyResult = LIMO.assemble($('src').value);
+  render(assemblyResult);
+  previousSnapshot = null;
+  if (assemblyResult.ok) {
+    const imem = new Uint32Array(1024);
+    imem.set(assemblyResult.words);
+    coreState = PIPELINE.createState({ imem });
+    runCycles = 0;
+  } else {
+    coreState = null;
+  }
+  renderCore();
+}
+
+function startOrPauseRun() {
+  if (runTimer) {
+    stopRun();
+    return;
+  }
+  if (!coreState || coreState.halted) return;
+  runCycles = 0;
+  $('run').textContent = 'Pause';
+  runTimer = setTimeout(runTick, 0);
+  renderCore();
+  $('run').textContent = 'Pause';
+}
+
+function resetCore() {
+  stopRun();
+  if (!coreState) return;
+  coreState = PIPELINE.reset(coreState);
+  previousSnapshot = null;
+  runCycles = 0;
+  renderCore();
+}
 
 // set up the example list
 for (const name of Object.keys(EXAMPLES)) {
@@ -848,12 +1177,17 @@ for (const name of Object.keys(EXAMPLES)) {
   option.value = name;
   $('ex').appendChild(option);
 }
-$('ex').addEventListener('change', () => { $('src').value = EXAMPLES[$('ex').value]; run(); });
-$('go').addEventListener('click', run);
-$('src').addEventListener('input', run);
+buildRegisterView();
+buildMemoryView();
+$('ex').addEventListener('change', () => { $('src').value = EXAMPLES[$('ex').value]; assembleAndLoad(); });
+$('go').addEventListener('click', assembleAndLoad);
+$('src').addEventListener('input', assembleAndLoad);
+$('step').addEventListener('click', () => { stopRun(); advanceOneCycle(); });
+$('run').addEventListener('click', startOrPauseRun);
+$('reset').addEventListener('click', resetCore);
 
 $('src').value = EXAMPLES[$('ex').value];
-run();
+assembleAndLoad();
 </script>
 </body>
 </html>
