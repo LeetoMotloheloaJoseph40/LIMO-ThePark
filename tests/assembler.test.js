@@ -97,13 +97,15 @@ describe('immediate boundaries', () => {
     assert.match(firstError('chetse p1, p1, 32').message, /shift amount/);
     assert.match(firstError('chetse p1, p1, -1').message, /shift amount/);
   });
-  test('branch reach: -4096 and +4094 accepted; -4098 and +4096 rejected', () => {
-    hex('lekana p0, p0, -4096'); hex('lekana p0, p0, 4094');
+  test('branch reach and word alignment', () => {
+    hex('lekana p0, p0, -4096'); hex('lekana p0, p0, 4092');
+    assert.match(firstError('lekana p0, p0, 4094').message, /multiple of 4/);
     assert.match(firstError('lekana p0, p0, 4096').message, /reach/);
-    assert.match(firstError('lekana p0, p0, -4098').message, /reach/);
+    assert.match(firstError('lekana p0, p0, -4100').message, /reach/);
   });
-  test('jump reach: -1048576 and +1048574 accepted; +1048576 rejected', () => {
-    hex('tlola p0, -1048576'); hex('tlola p0, 1048574');
+  test('jump reach and word alignment', () => {
+    hex('tlola p0, -1048576'); hex('tlola p0, 1048572');
+    assert.match(firstError('tlola p0, 1048574').message, /multiple of 4/);
     assert.match(firstError('tlola p0, 1048576').message, /reach/);
   });
 });
@@ -134,7 +136,12 @@ describe('error messages (plain language, line numbers, suggestions)', () => {
   test('duplicate label', () => assert.match(firstError('a: kopanya p1,p1,p1\na: kopanya p1,p1,p1').message, /defined twice/));
   test('invalid label name', () => assert.match(firstError('1abc: kopanya p1,p1,p1').message, /not a valid label name/));
   test('label cannot be an instruction or register name', () => assert.match(firstError('noto: kopanya p1,p1,p1').message, /cannot be a label/));
-  test('misaligned (odd) branch offset', () => assert.match(firstError('lekana p0, p0, 3').message, /odd/));
+  test('branch and jump offsets must be word-aligned', () => {
+    assert.match(firstError('lekana p0, p0, 3').message, /multiple of 4/);
+    assert.match(firstError('lekana p0, p0, 6').message, /multiple of 4/);
+    assert.match(firstError('tlola b8, 596050').message, /multiple of 4/);
+    assert.match(firstError('tlola p0, 2').message, /multiple of 4/);
+  });
   test('bad memory operand', () => assert.match(firstError('tshela p1, 4').message, /not a memory operand/));
   test('several errors are all reported, in line order', () => {
     const r = assemble('foo p1\nkopanya p1, p2\nkopanyah p1, p0, 99999');
